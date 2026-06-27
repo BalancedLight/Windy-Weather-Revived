@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Thời tiết gió</string>
+    <string name="setting_title">Cài đặt cập nhật thời tiết tự động</string>
+    <string name="wallpaper_description">Phản ánh thời tiết hiện tại qua cảnh cối xay gió</string>
+    <string name="cancel">Hủy</string>
+</resources>

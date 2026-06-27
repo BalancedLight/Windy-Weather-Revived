@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Windy Weather</string>
+    <string name="setting_title">Weather auto update settings</string>
+    <string name="wallpaper_description">Reflects the current weather via a windmill scene</string>
+    <string name="cancel">Cancel</string>
+</resources>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="com.samsung.android.weather.permission.READ_DANGEROUS_PROVIDER" />
+
+    <uses-feature
+        android:name="android.software.live_wallpaper"
+        android:required="true" />
+
+    <uses-feature
+        android:glEsVersion="0x00010001"
+        android:required="true" />
+
+    <queries>
+        <package android:name="com.samsung.android.weather" />
+        <package android:name="com.sec.android.daemonapp" />
+        <package android:name="com.sec.android.widgetapp.ap.accuweather" />
+        <package android:name="com.sec.android.widgetapp.ap.accuweatherdaemon" />
+        <provider android:authorities="com.samsung.android.weather.content.provider.level.dangerous" />
+        <provider android:authorities="com.samsung.android.weather.content.provider.level.system" />
+        <provider android:authorities="com.sec.android.daemonapp.provider" />
+        <provider android:authorities="com.sec.android.widgetapp.ap.accuweather.provider" />
+        <provider android:authorities="com.sec.android.daemonapp.ap.accuweather.provider" />
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/icon_windmill"
+        android:label="@string/app_name"
+        android:supportsRtl="true">
+
+        <service
+            android:name="com.BalancedLight.WindyWeather.SecretWallpaperService"
+            android:description="@string/wallpaper_description"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/live_wallpaper" />
+        </service>
+
+        <activity
+            android:name="com.BalancedLight.WindyWeather.SecretWallpaperSetting"
+            android:exported="true"
+            android:label="@string/setting_title"
+            android:theme="@style/NoAnimation" />
+    </application>
+
+</manifest>
+

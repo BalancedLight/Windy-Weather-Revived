@@ -1,0 +1,23 @@
+#Ignore vscode AI rules
+codacy.instructions.md
+
+build/
+app/build/
+app/release/
+app/debug/
+
+.gradle/
+.gradle-local/
+.kotlin/
+.idea/
+
+*.iml
+local.properties
+hs_err_pid*.log
+*.logcat
+WeatherWallOriginal.zip
+
+*.jks
+*.keystore
+keystore.properties
+signing.properties

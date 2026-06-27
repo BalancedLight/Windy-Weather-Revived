@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Viento del tiempo</string>
+    <string name="setting_title">Configurar actualización automática de meteorología</string>
+    <string name="wallpaper_description">Refleja el clima actual a través de una escena de molino</string>
+    <string name="cancel">Cancelar</string>
+</resources>

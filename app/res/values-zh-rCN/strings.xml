@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">多风的天气</string>
+    <string name="setting_title">天气自动更新设置</string>
+    <string name="wallpaper_description">通过风车场景反映当前天气</string>
+    <string name="cancel">取消</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Windy Weather</string>
+    <string name="setting_title">Ajustes de actualización automática de meteorología</string>
+    <string name="wallpaper_description">Este fondo de pantalla muestra el tiempo actual mediante un escenario de molino</string>
+    <string name="cancel">Cancelar</string>
+</resources>
