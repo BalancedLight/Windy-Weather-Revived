@@ -13,7 +13,7 @@ This project contains small fixes and improvements to the original, including a 
 * New weather events ("Mostly Clear", raindrops on thunder, frost overlay in freezing temperatures, etc..)
 * Framerate adjustments from 15 to 60FPS
 * Moon phases appear on-screen
-* Paralax for launchers that support it
+* Parallax for launchers that support it
 * Experimental Samsung weather compatibility (Samsung Only)
 
 ## Build
