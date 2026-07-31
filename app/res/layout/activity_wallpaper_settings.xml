@@ -78,6 +78,13 @@
             android:layout_marginTop="8dp"
             android:text="@string/settings_ground_parallax" />
 
+        <Switch
+            android:id="@+id/switch_sunrise_sunset_skies"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/settings_sunrise_sunset_skies" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

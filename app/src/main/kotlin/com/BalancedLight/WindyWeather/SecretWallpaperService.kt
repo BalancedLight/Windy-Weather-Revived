@@ -71,6 +71,7 @@ class SecretWallpaperService : GLWallpaperService() {
     private var mbIsPreview = false
     private var mnSunriseTime = 600
     private var mnSunsetTime = 1800
+    private var mLastTwilightSkyPhase = TwilightTimeline.SkyPhase.DAY
     private var mnHighTemp = 0
     private var mnLowTemp = 0
     private var mnCurrentTemp = 0
@@ -204,6 +205,7 @@ class SecretWallpaperService : GLWallpaperService() {
             ) ?: com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurWeather
         this.mEnableLogo = this.isLegacyLogoVisible
         this.mbIsNight = this.isNightEffective
+        this.mLastTwilightSkyPhase = this.currentTwilightSkyPhase
         registerNetworkCallback()
         this.mSamsungSyncBridge = SamsungWeatherSyncBridge(this.mContext)
         this.mSamsungSyncBridge?.start()
@@ -215,6 +217,7 @@ class SecretWallpaperService : GLWallpaperService() {
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_POWER_SAVE_TARGET_FPS)
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_FRAME_RATE_DEPENDENT_ANIMATION)
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_GROUND_PARALLAX)
+        filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_SUNRISE_SUNSET_SKIES)
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_DEBUG_SET_FORCED_SCENE)
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_DEBUG_SET_FORCED_WEATHER_CODE)
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_DEBUG_SET_OLD_NIGHT_EFFECT)
@@ -427,6 +430,78 @@ class SecretWallpaperService : GLWallpaperService() {
         return nCurTime < com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService!!.mnSunriseTime || nCurTime >= com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService!!.mnSunsetTime
     }
 
+    private val currentTwilightTimeline: TwilightTimeline.State
+        get() {
+            val now = Calendar.getInstance()
+            val nowMinutes = (now.get(Calendar.HOUR_OF_DAY) * 60) + now.get(Calendar.MINUTE)
+            return TwilightTimeline.resolve(nowMinutes, this.mnSunriseTime, this.mnSunsetTime)
+        }
+
+    private val isAutomaticTimeOfDayVisualsEnabled: Boolean
+        get() = this.isSunriseSunsetSkyEnabled && this.dayNightMode == com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_AUTO
+
+    private val currentTwilightSkyPhase: TwilightTimeline.SkyPhase
+        get() {
+            if (!this.isAutomaticTimeOfDayVisualsEnabled) {
+                return if (this.isNightEffective) TwilightTimeline.SkyPhase.NIGHT else TwilightTimeline.SkyPhase.DAY
+            }
+            return this.currentTwilightTimeline.phase
+        }
+
+    private fun isTwilightSkyScene(sceneOrdinal: Int): Boolean {
+        return sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal
+                || sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D2_CLOUDY.ordinal
+                || sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal
+    }
+
+    private fun resolveDaySkyResource(sceneOrdinal: Int, defaultResourceId: Int): Int {
+        if (!this.isAutomaticTimeOfDayVisualsEnabled || !isTwilightSkyScene(sceneOrdinal)) {
+            return defaultResourceId
+        }
+        return when (this.currentTwilightTimeline.phase) {
+            TwilightTimeline.SkyPhase.MORNING -> R.drawable.sky_morning
+            TwilightTimeline.SkyPhase.SUNSET -> R.drawable.sky_sunset
+            else -> defaultResourceId
+        }
+    }
+
+    private fun foregroundTwilightTint(sceneOrdinal: Int, isNight: Boolean): TwilightTimeline.Rgb {
+        if (isNight || !this.isAutomaticTimeOfDayVisualsEnabled || !isTwilightSkyScene(sceneOrdinal)) {
+            return TwilightTimeline.Rgb(1.0f, 1.0f, 1.0f)
+        }
+        return this.currentTwilightTimeline.twilightTint
+    }
+
+    private fun activeSunProgress(): Float? {
+        if (!this.isAutomaticTimeOfDayVisualsEnabled) {
+            return null
+        }
+        return this.currentTwilightTimeline.daylightProgress
+    }
+
+    private fun activeMoonProgress(): Float? {
+        if (!this.isAutomaticTimeOfDayVisualsEnabled) {
+            return null
+        }
+        return this.currentTwilightTimeline.nightProgress
+    }
+
+    private fun shouldHideMoonForAutomaticGap(): Boolean {
+        return this.isAutomaticTimeOfDayVisualsEnabled
+                && this.currentTwilightTimeline.hasValidDaylightData
+                && this.currentTwilightTimeline.nightProgress == null
+    }
+
+    private fun shouldDrawSunForScene(sceneOrdinal: Int): Boolean {
+        if (sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal
+            || sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal
+        ) {
+            return true
+        }
+        return sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D2_CLOUDY.ordinal
+                && this.isAutomaticTimeOfDayVisualsEnabled
+    }
+
     fun updateWeatherInfo(): Boolean {
         val snapshot: WeatherSnapshot? = WeatherDataCoordinator.readFromCache(this.mContext)
         val forcedWeatherCode = this.forcedWeatherCodeOverride
@@ -561,6 +636,12 @@ class SecretWallpaperService : GLWallpaperService() {
             if (previousSunsetTime != this.mnSunsetTime) {
                 editor.putInt("last_sunset_time_2", this.mnSunsetTime)
             }
+            if ((previousSunriseTime != this.mnSunriseTime || previousSunsetTime != this.mnSunsetTime)
+                && this.isAutomaticTimeOfDayVisualsEnabled
+            ) {
+                this.mLastTwilightSkyPhase = this.currentTwilightSkyPhase
+                this.setImageSetChange(true)
+            }
             if (previousBelowFreezing != this.isBelowFreezingNow) {
                 com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService!!.setImageSetChange(
                     true
@@ -682,6 +763,18 @@ class SecretWallpaperService : GLWallpaperService() {
                     com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.GROUND_PARALLAX_DEFAULT
                 )
                 this@SecretWallpaperService.isGroundParallaxEnabled = enabled
+            } else if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_SUNRISE_SUNSET_SKIES.equals(
+                    action
+                )
+            ) {
+                val enabled: Boolean = safeIntent.getBooleanExtra(
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.EXTRA_SUNRISE_SUNSET_SKIES_ENABLED,
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.SUNRISE_SUNSET_SKIES_DEFAULT
+                )
+                this@SecretWallpaperService.isSunriseSunsetSkyEnabled = enabled
+                this@SecretWallpaperService.mLastTwilightSkyPhase =
+                    this@SecretWallpaperService.currentTwilightSkyPhase
+                this@SecretWallpaperService.setImageSetChange(true)
             } else if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_DEBUG_SET_FORCED_SCENE.equals(
                     action
                 )
@@ -750,6 +843,8 @@ class SecretWallpaperService : GLWallpaperService() {
                 this@SecretWallpaperService.dayNightMode = mode
                 this@SecretWallpaperService.mbIsNight =
                     this@SecretWallpaperService.isNightEffective
+                this@SecretWallpaperService.mLastTwilightSkyPhase =
+                    this@SecretWallpaperService.currentTwilightSkyPhase
                 this@SecretWallpaperService.setImageSetChange(true)
             } else if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_DEBUG_SET_HIDE_THUNDER_RAINDROPS_LEGACY.equals(
                     action
@@ -931,6 +1026,11 @@ class SecretWallpaperService : GLWallpaperService() {
                     true
                 )
             }
+            val twilightSkyPhase = this@SecretWallpaperService.currentTwilightSkyPhase
+            if (twilightSkyPhase != this@SecretWallpaperService.mLastTwilightSkyPhase) {
+                this@SecretWallpaperService.mLastTwilightSkyPhase = twilightSkyPhase
+                this@SecretWallpaperService.setImageSetChange(true)
+            }
             val intervalMs = this@SecretWallpaperService.weatherRefreshIntervalMs
             if (this@SecretWallpaperService.isWeatherRefreshEnabled && intervalMs > 0L && System.currentTimeMillis() - this@SecretWallpaperService.mLastWeatherRefreshMs >= intervalMs) {
                 this@SecretWallpaperService.mWeatherHandler.sendMessage(
@@ -1106,6 +1206,26 @@ class SecretWallpaperService : GLWallpaperService() {
             }
             com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.edit().putBoolean(
                 com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_GROUND_PARALLAX,
+                enabled
+            ).apply()
+        }
+
+    private var isSunriseSunsetSkyEnabled: Boolean
+        get() {
+            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
+                return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.SUNRISE_SUNSET_SKIES_DEFAULT
+            }
+            return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.getBoolean(
+                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_SUNRISE_SUNSET_SKIES,
+                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.SUNRISE_SUNSET_SKIES_DEFAULT
+            )
+        }
+        private set(enabled) {
+            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
+                return
+            }
+            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.edit().putBoolean(
+                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_SUNRISE_SUNSET_SKIES,
                 enabled
             ).apply()
         }
@@ -1684,6 +1804,11 @@ class SecretWallpaperService : GLWallpaperService() {
                     com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService!!.setImageSetChange(
                         true
                     )
+                }
+                val twilightSkyPhase = this@SecretWallpaperService.currentTwilightSkyPhase
+                if (twilightSkyPhase != this@SecretWallpaperService.mLastTwilightSkyPhase) {
+                    this@SecretWallpaperService.mLastTwilightSkyPhase = twilightSkyPhase
+                    this@SecretWallpaperService.setImageSetChange(true)
                 }
                 val display: Display =
                     (this@SecretWallpaperService.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay
@@ -2472,7 +2597,15 @@ class SecretWallpaperService : GLWallpaperService() {
             this.isImageSetLoading = true
             if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal || i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal) {
                 if (!z) {
-                    this.sky!!.loadGLTexture(gl10, context, R.drawable.sky_01, false)
+                    this.sky!!.loadGLTexture(
+                        gl10,
+                        context,
+                        com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.resolveDaySkyResource(
+                            i,
+                            R.drawable.sky_01
+                        ) ?: R.drawable.sky_01,
+                        false
+                    )
                     if (mostlyClearScene) {
                         this.cloud1!!.loadGLTexture(gl10, context, R.drawable.cloud_a_01, false)
                         this.cloud2!!.loadGLTexture(gl10, context, R.drawable.cloud_b_01, false)
@@ -2554,7 +2687,15 @@ class SecretWallpaperService : GLWallpaperService() {
                     if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D4_FOG.ordinal) {
                         this.sky!!.loadGLTexture(gl10, context, R.drawable.sky_03, false)
                     } else {
-                        this.sky!!.loadGLTexture(gl10, context, R.drawable.sky_01, false)
+                        this.sky!!.loadGLTexture(
+                            gl10,
+                            context,
+                            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.resolveDaySkyResource(
+                                i,
+                                R.drawable.sky_01
+                            ) ?: R.drawable.sky_01,
+                            false
+                        )
                     }
                     if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D3_DREARY.ordinal || i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D4_FOG.ordinal) {
                         this.cloud1!!.loadGLTexture(gl10, context, R.drawable.cloud_a_03, false)
@@ -2624,10 +2765,17 @@ class SecretWallpaperService : GLWallpaperService() {
                 } else {
                     this.fog!!.deleteGLTexture(gl10, context)
                 }
-                this.sun1!!.deleteGLTexture(gl10, context)
-                this.sun2!!.deleteGLTexture(gl10, context)
-                this.sun3!!.deleteGLTexture(gl10, context)
-                this.sun4!!.deleteGLTexture(gl10, context)
+                if (!z && com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.shouldDrawSunForScene(i) == true) {
+                    this.sun1!!.loadGLTexture(gl10, context, R.drawable.a_sun_01, false)
+                    this.sun2!!.loadGLTexture(gl10, context, R.drawable.a_sun_02, false)
+                    this.sun3!!.loadGLTexture(gl10, context, R.drawable.a_sun_03, false)
+                    this.sun4!!.loadGLTexture(gl10, context, R.drawable.a_sun_04, false)
+                } else {
+                    this.sun1!!.deleteGLTexture(gl10, context)
+                    this.sun2!!.deleteGLTexture(gl10, context)
+                    this.sun3!!.deleteGLTexture(gl10, context)
+                    this.sun4!!.deleteGLTexture(gl10, context)
+                }
                 this.rain1!!.deleteGLTexture(gl10, context)
                 this.rain2!!.deleteGLTexture(gl10, context)
                 this.rain3!!.deleteGLTexture(gl10, context)
@@ -3328,7 +3476,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 this.mbFlip = bFlip
             }
 
-            fun drawWindMill(gl: GL10, bType: Boolean) {
+            fun drawWindMill(gl: GL10, bType: Boolean, tint: TwilightTimeline.Rgb) {
                 var fColor = 1.0f
                 if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService!!.isNightEffective) {
                     val oldNightEffect: Boolean =
@@ -3348,28 +3496,70 @@ class SecretWallpaperService : GLWallpaperService() {
                 if (this.mnDistance == 0) {
                     this.mPillar!!.moveTo(gl, this.mnDistance)
                     if (!this.mbFlip) {
-                        this@CSPRenderer.windmill_pillar_01!!.shortdraw(gl, fColor, this.mfAlpha)
+                        this@CSPRenderer.windmill_pillar_01!!.shortdraw(
+                            gl,
+                            tint.red * fColor,
+                            tint.green * fColor,
+                            tint.blue * fColor,
+                            this.mfAlpha
+                        )
                     } else {
-                        this@CSPRenderer.windmill_pillar_flip_01!!.shortdraw(gl, fColor, this.mfAlpha)
+                        this@CSPRenderer.windmill_pillar_flip_01!!.shortdraw(
+                            gl,
+                            tint.red * fColor,
+                            tint.green * fColor,
+                            tint.blue * fColor,
+                            this.mfAlpha
+                        )
                     }
                 } else {
                     this.mPillar!!.moveTo(gl, this.mnDistance)
                     if (!this.mbFlip) {
-                        this@CSPRenderer.windmill_pillar_02!!.shortdraw(gl, fColor, this.mfAlpha)
+                        this@CSPRenderer.windmill_pillar_02!!.shortdraw(
+                            gl,
+                            tint.red * fColor,
+                            tint.green * fColor,
+                            tint.blue * fColor,
+                            this.mfAlpha
+                        )
                     } else {
-                        this@CSPRenderer.windmill_pillar_flip_02!!.shortdraw(gl, fColor, this.mfAlpha)
+                        this@CSPRenderer.windmill_pillar_flip_02!!.shortdraw(
+                            gl,
+                            tint.red * fColor,
+                            tint.green * fColor,
+                            tint.blue * fColor,
+                            this.mfAlpha
+                        )
                     }
                 }
                 this.mWing!!.moveToWithOffset(gl, this.mnDistance, 0.0f, landscapeWingYOffset)
                 gl.glRotatef(this.mfFanAngle, 0.0f, 0.0f, 1.0f)
                 if (this.mnDistance == 0) {
-                    this@CSPRenderer.windmill_wing!!.shortdraw(gl, fColor, this.mfAlpha)
+                    this@CSPRenderer.windmill_wing!!.shortdraw(
+                        gl,
+                        tint.red * fColor,
+                        tint.green * fColor,
+                        tint.blue * fColor,
+                        this.mfAlpha
+                    )
                 } else {
-                    this@CSPRenderer.windmill_wing_blur!!.shortdraw(gl, fColor, this.mfAlpha)
+                    this@CSPRenderer.windmill_wing_blur!!.shortdraw(
+                        gl,
+                        tint.red * fColor,
+                        tint.green * fColor,
+                        tint.blue * fColor,
+                        this.mfAlpha
+                    )
                 }
                 if (this.mnDistance == 0) {
                     this.mCenter!!.moveToWithOffset(gl, this.mnDistance, 0.0f, landscapeWingYOffset)
-                    this@CSPRenderer.windmill_center_01!!.shortdraw(gl, fColor, this.mfAlpha)
+                    this@CSPRenderer.windmill_center_01!!.shortdraw(
+                        gl,
+                        tint.red * fColor,
+                        tint.green * fColor,
+                        tint.blue * fColor,
+                        this.mfAlpha
+                    )
                 }
             }
         }
@@ -3391,6 +3581,10 @@ class SecretWallpaperService : GLWallpaperService() {
             val cloudWrapSpanShort = if (this.mIsPortrait) 40.0f else 72.0f * landscapeSceneFill
             val loadedWeather = this.loadedImageset
             val loadedNight = this.loadedImagesetDayNight
+            val foregroundTint = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.foregroundTwilightTint(
+                loadedWeather,
+                loadedNight
+            ) ?: TwilightTimeline.Rgb(1.0f, 1.0f, 1.0f)
             val clearFamilyScene =
                 loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal
             val freezingFogOverlay =
@@ -3435,40 +3629,62 @@ class SecretWallpaperService : GLWallpaperService() {
                 gl10.glScalef(1.8f * this.mfLandscape, 0.45f, 0.0f)
                 this.sky_stars!!.shortdraw(gl10, 1.0f, 1.0f)
             }
-            if (clearFamilyScene || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D8_ICE_COLD.ordinal) {
-                if (!loadedNight) {
-                    if (clearFamilyScene) {
-                        this.fAlpha = 1.0f
-                        gl10.glLoadIdentity()
-                        gl10.glTranslatef((skyShift * 0.2f) + 3.0f, 6.0f, -28.0f)
-                        gl10.glRotatef(this.mFrameCnt * 0.54f, 0.0f, 0.0f, 1.0f)
-                        this.sun1!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
-                        gl10.glLoadIdentity()
-                        gl10.glTranslatef((skyShift * 0.2f) + 3.0f, 6.0f, -28.0f)
-                        gl10.glRotatef(this.mFrameCnt * 0.36f, 0.0f, 0.0f, 1.0f)
-                        this.sun2!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
-                        gl10.glLoadIdentity()
-                        gl10.glTranslatef((skyShift * 0.2f) + 3.0f, 6.0f, -28.0f)
-                        gl10.glRotatef(this.mFrameCnt * (-0.54f), 0.0f, 0.0f, 1.0f)
-                        this.sun3!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
-                    }
-                } else {
+            if (!loadedNight && com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.shouldDrawSunForScene(loadedWeather) == true) {
+                val sunProgress = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.activeSunProgress()
+                val sunX = if (sunProgress == null) 3.0f else -3.0f + (6.0f * sunProgress)
+                val sunY = if (sunProgress == null) 6.0f else TwilightTimeline.bodyArcY(sunProgress)
+                this.fAlpha = 1.0f
+                gl10.glLoadIdentity()
+                gl10.glTranslatef((skyShift * 0.2f) + sunX, sunY, -28.0f)
+                gl10.glRotatef(this.mFrameCnt * 0.54f, 0.0f, 0.0f, 1.0f)
+                this.sun1!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
+                gl10.glLoadIdentity()
+                gl10.glTranslatef((skyShift * 0.2f) + sunX, sunY, -28.0f)
+                gl10.glRotatef(this.mFrameCnt * 0.36f, 0.0f, 0.0f, 1.0f)
+                this.sun2!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
+                gl10.glLoadIdentity()
+                gl10.glTranslatef((skyShift * 0.2f) + sunX, sunY, -28.0f)
+                gl10.glRotatef(this.mFrameCnt * (-0.54f), 0.0f, 0.0f, 1.0f)
+                this.sun3!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
+            } else if (loadedNight && (clearFamilyScene || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D8_ICE_COLD.ordinal)) {
                     this.fAlpha = 1.0f
                     gl10.glLoadIdentity()
+                    val mainService = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService
+                    val moonProgress = if (clearFamilyScene) {
+                        mainService?.activeMoonProgress()
+                    } else {
+                        null
+                    }
+                    val shouldHideStaticMoon = clearFamilyScene
+                            && mainService?.shouldHideMoonForAutomaticGap() == true
                     val moonBaseX = if (!this.m1280x720) 3.2f else 2.8f
                     var moonShift = skyShift
-                    if (this.mIsPortrait) {
-                        moonShift *= 0.2f
-                        val moonHalfWidth = 2.4f
-                        val moonMargin = 0.25f
-                        val rightLimit = getWorldHalfWidth(28.5f) - moonHalfWidth - moonMargin
-                        val moonX: Float = Math.min(moonBaseX + moonShift, rightLimit)
-                        gl10.glTranslatef(moonX, 7.0f, -28.5f)
-                    } else {
-                        gl10.glTranslatef(moonBaseX + moonShift, 7.0f, -28.5f)
+                    if (!shouldHideStaticMoon) {
+                        if (moonProgress != null) {
+                            moonShift *= 0.2f
+                            val moonX = (-3.2f + (6.4f * moonProgress)) + moonShift
+                            val moonY = TwilightTimeline.bodyArcY(moonProgress)
+                            if (this.mIsPortrait) {
+                                val moonHalfWidth = 2.4f
+                                val moonMargin = 0.25f
+                                val horizontalLimit = getWorldHalfWidth(28.5f) - moonHalfWidth - moonMargin
+                                gl10.glTranslatef(moonX.coerceIn(-horizontalLimit, horizontalLimit), moonY, -28.5f)
+                            } else {
+                                gl10.glTranslatef(moonX, moonY, -28.5f)
+                            }
+                        } else if (this.mIsPortrait) {
+                            moonShift *= 0.2f
+                            val moonHalfWidth = 2.4f
+                            val moonMargin = 0.25f
+                            val rightLimit = getWorldHalfWidth(28.5f) - moonHalfWidth - moonMargin
+                            val moonX: Float = Math.min(moonBaseX + moonShift, rightLimit)
+                            gl10.glTranslatef(moonX, 7.0f, -28.5f)
+                        } else {
+                            gl10.glTranslatef(moonBaseX + moonShift, 7.0f, -28.5f)
+                        }
+                        gl10.glScalef(0.3f, 0.3f, 0.0f)
+                        this.moon!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                     }
-                    gl10.glScalef(0.3f, 0.3f, 0.0f)
-                    this.moon!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                     if (this.mFrameCnt % 200 == 0 || this.bClearOn) {
                         for (i in 0..6) {
                             if (Math.random() > 0.20000000298023224) {
@@ -3551,7 +3767,6 @@ class SecretWallpaperService : GLWallpaperService() {
                         this.meteor!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                     }
                 }
-            }
             // Mostly clear owns this cloud pass; clear sky scenes stay cloud-free.
             if (loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal) {
                 if (this.mFrameCnt < 100) {
@@ -3899,7 +4114,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 for (i6 in this.windmillSet!!.indices) {
                     if (this.windmillSet!![i6] != null && this.windmillSet!![i6]!!.mnDistance == 2 && this.windmillSet!![i6]!!.isCreated) {
                         this.windmillSet!![i6]!!.setFanAngle(this.mWindmillAngle + this.windmill_wing_offset[i6])
-                        this.windmillSet!![i6]!!.drawWindMill(gl10, true)
+                        this.windmillSet!![i6]!!.drawWindMill(gl10, true, foregroundTint)
                     }
                 }
             }
@@ -3914,12 +4129,18 @@ class SecretWallpaperService : GLWallpaperService() {
             val land2ScaleY = if (this.mIsPortrait) 1.8f else 2.05f
             gl10.glTranslatef(land2X, land2Y, -24.0f)
             gl10.glScalef(land2ScaleX, land2ScaleY, 0.0f)
-            this.land_02!!.shortdraw(gl10, 1.0f, 1.0f)
+            this.land_02!!.shortdraw(
+                gl10,
+                foregroundTint.red,
+                foregroundTint.green,
+                foregroundTint.blue,
+                1.0f
+            )
             if (this.windmillSet != null) {
                 for (i7 in this.windmillSet!!.indices) {
                     if (this.windmillSet!![i7] != null && this.windmillSet!![i7]!!.mnDistance == 1 && this.windmillSet!![i7]!!.isCreated) {
                         this.windmillSet!![i7]!!.setFanAngle(this.mWindmillAngle + this.windmill_wing_offset[i7])
-                        this.windmillSet!![i7]!!.drawWindMill(gl10, true)
+                        this.windmillSet!![i7]!!.drawWindMill(gl10, true, foregroundTint)
                     }
                 }
             }
@@ -3934,12 +4155,18 @@ class SecretWallpaperService : GLWallpaperService() {
             val land1ScaleY = if (this.mIsPortrait) 3.2f else 3.55f
             gl10.glTranslatef(land1X, land1Y, -23.0f)
             gl10.glScalef(land1ScaleX, land1ScaleY, 0.0f)
-            this.land_01!!.shortdraw(gl10, 1.0f, 1.0f)
+            this.land_01!!.shortdraw(
+                gl10,
+                foregroundTint.red,
+                foregroundTint.green,
+                foregroundTint.blue,
+                1.0f
+            )
             if (this.windmillSet != null) {
                 for (i8 in this.windmillSet!!.indices) {
                     if (this.windmillSet!![i8] != null && this.windmillSet!![i8]!!.mnDistance == 0 && this.windmillSet!![i8]!!.isCreated) {
                         this.windmillSet!![i8]!!.setFanAngle(this.mWindmillAngle + this.windmill_wing_offset[i8])
-                        this.windmillSet!![i8]!!.drawWindMill(gl10, true)
+                        this.windmillSet!![i8]!!.drawWindMill(gl10, true, foregroundTint)
                     }
                 }
             }
@@ -3966,7 +4193,13 @@ class SecretWallpaperService : GLWallpaperService() {
             gl10.glTranslatef(lawnX, lawnY, -lawnDepth)
             gl10.glScalef(lawnScaleX, lawnScaleY, 0.0f)
             gl10.glDisable(2929)
-            this.lawn_01!!.shortdraw(gl10, 1.0f, 1.0f)
+            this.lawn_01!!.shortdraw(
+                gl10,
+                foregroundTint.red,
+                foregroundTint.green,
+                foregroundTint.blue,
+                1.0f
+            )
             gl10.glEnable(2929)
             gl10.glDisable(2929)
             if (this.loadedImageset == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal && !this.loadedImagesetDayNight && this.bClearOn) {
@@ -5014,6 +5247,8 @@ class SecretWallpaperService : GLWallpaperService() {
             "com.BalancedLight.WindyWeather.action.SET_FRAME_RATE_DEPENDENT_ANIMATION"
         val ACTION_SET_GROUND_PARALLAX: String =
             "com.BalancedLight.WindyWeather.action.SET_GROUND_PARALLAX"
+        val ACTION_SET_SUNRISE_SUNSET_SKIES: String =
+            "com.BalancedLight.WindyWeather.action.SET_SUNRISE_SUNSET_SKIES"
         val ACTION_DEBUG_SET_FORCED_SCENE: String =
             "com.BalancedLight.WindyWeather.action.DEBUG_SET_FORCED_SCENE"
         val ACTION_DEBUG_SET_FORCED_WEATHER_CODE: String =
@@ -5053,6 +5288,7 @@ class SecretWallpaperService : GLWallpaperService() {
         val EXTRA_FRAME_RATE_DEPENDENT_ANIMATION_ENABLED: String =
             "extra_frame_rate_dependent_animation_enabled"
         val EXTRA_GROUND_PARALLAX_ENABLED: String = "extra_ground_parallax_enabled"
+        val EXTRA_SUNRISE_SUNSET_SKIES_ENABLED: String = "extra_sunrise_sunset_skies_enabled"
         val EXTRA_DEBUG_FORCED_SCENE: String = "extra_debug_forced_scene"
         val EXTRA_DEBUG_FORCED_WEATHER_CODE: String = "extra_debug_forced_weather_code"
         val EXTRA_OLD_NIGHT_EFFECT_ENABLED: String = "extra_old_night_effect_enabled"
@@ -5078,6 +5314,7 @@ class SecretWallpaperService : GLWallpaperService() {
         val PREF_KEY_POWER_SAVE_TARGET_FPS: String = "pref_power_save_target_fps"
         val PREF_KEY_FRAME_RATE_DEPENDENT_ANIMATION: String = "pref_frame_rate_dependent_animation"
         val PREF_KEY_GROUND_PARALLAX: String = "pref_ground_parallax"
+        val PREF_KEY_SUNRISE_SUNSET_SKIES: String = "pref_sunrise_sunset_skies"
         val PREF_KEY_DEBUG_FORCED_SCENE: String = "debug_forced_scene"
         val PREF_KEY_DEBUG_FORCED_WEATHER_CODE: String = "debug_forced_weather_code"
         val PREF_KEY_OLD_NIGHT_EFFECT: String = "pref_old_night_effect"
@@ -5121,6 +5358,7 @@ class SecretWallpaperService : GLWallpaperService() {
         const val TARGET_FPS_POWER_SAVE_DEFAULT: Int = 15
         const val FRAME_RATE_DEPENDENT_ANIMATION_DEFAULT: Boolean = true
         const val GROUND_PARALLAX_DEFAULT: Boolean = true
+        const val SUNRISE_SUNSET_SKIES_DEFAULT: Boolean = true
         const val AEROWEATHER_REFRESH_SYNC_DEFAULT: Boolean = true
         var mMainService: SecretWallpaperService? = null
         var mWallpaperEngine: CSPWallpaperEngine? = null

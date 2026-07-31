@@ -43,6 +43,7 @@
     <string name="settings_show_city_name">Show city name</string>
     <string name="settings_show_legacy_logo">Show weather information watermark</string>
     <string name="settings_ground_parallax">Enable ground parallax (May only work on certain launchers)</string>
+    <string name="settings_sunrise_sunset_skies">Enable sunrise and sunset skies</string>
     <string name="settings_legacy_classic_watermark">Use old classic watermark</string>
     <string name="settings_texture_pack_title">Texture quality pack</string>
     <string name="settings_texture_pack_hq">HQ (AI Upscaled)</string>
@@ -83,6 +84,8 @@
     <string name="settings_debug_logo_off">Weather information watermark disabled.</string>
     <string name="settings_ground_parallax_on">Ground parallax enabled.</string>
     <string name="settings_ground_parallax_off">Ground parallax disabled.</string>
+    <string name="settings_sunrise_sunset_skies_on">Sunrise and sunset skies enabled.</string>
+    <string name="settings_sunrise_sunset_skies_off">Sunrise and sunset skies disabled.</string>
     <string name="settings_legacy_classic_watermark_on">Classic watermark enabled.</string>
     <string name="settings_legacy_classic_watermark_off">Classic watermark disabled.</string>
     <string name="settings_debug_day_night_updated">Day/Night mode updated.</string>

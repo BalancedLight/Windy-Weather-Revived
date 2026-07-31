@@ -153,8 +153,12 @@ class Square(context: Context?, strName: String?) {
     }
 
     fun shortdraw(gl: GL10, fColor: Float, opacity: Float) {
+        shortdraw(gl, fColor, fColor, fColor, opacity)
+    }
+
+    fun shortdraw(gl: GL10, red: Float, green: Float, blue: Float, opacity: Float) {
         if (this.textureLoaded) {
-            gl.glColor4f(fColor, fColor, fColor, opacity)
+            gl.glColor4f(red, green, blue, opacity)
             gl.glVertexPointer(3, 5126, 0, this.vertexBuffer)
             gl.glTexCoordPointer(2, 5126, 0, this.textureBuffer ?: return)
             gl.glBindTexture(3553, this.textures[0])

@@ -133,10 +133,14 @@ class RectOneToFour(context: Context?, strName: String?) {
     }
 
     fun shortdraw(gl: GL10, fColor: Float, opacity: Float) {
+        shortdraw(gl, fColor, fColor, fColor, opacity)
+    }
+
+    fun shortdraw(gl: GL10, red: Float, green: Float, blue: Float, opacity: Float) {
         if (this.textureLoaded) {
             gl.glVertexPointer(3, 5126, 0, this.vertexBuffer)
             gl.glTexCoordPointer(2, 5126, 0, this.textureBuffer)
-            gl.glColor4f(fColor, fColor, fColor, opacity)
+            gl.glColor4f(red, green, blue, opacity)
             gl.glBindTexture(3553, this.textures[0])
             gl.glDrawElements(4, this.indices.size, 5123, this.indexBuffer)
         }

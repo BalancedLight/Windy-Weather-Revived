@@ -63,6 +63,7 @@ class SecretWallpaperSetting : Activity() {
         val showCitySwitch: Switch = findViewById(R.id.switch_show_city_name)
         val showLogoSwitch: Switch = findViewById(R.id.switch_show_legacy_logo)
         val groundParallaxSwitch: Switch = findViewById(R.id.switch_ground_parallax)
+        val sunriseSunsetSkiesSwitch: Switch = findViewById(R.id.switch_sunrise_sunset_skies)
         val samsungWeatherSwitch: Switch = findViewById(R.id.switch_use_samsung_weather)
         val syncAeroWeatherRefreshSwitch: Switch =
             findViewById(R.id.switch_sync_aeroweather_refresh)
@@ -542,6 +543,26 @@ class SecretWallpaperSetting : Activity() {
             Toast.makeText(
                 this,
                 if (isChecked) R.string.settings_ground_parallax_on else R.string.settings_ground_parallax_off,
+                Toast.LENGTH_SHORT
+            ).show()
+        })
+
+        val sunriseSunsetSkiesEnabled: Boolean = this.prefs.getBoolean(
+            SecretWallpaperService.PREF_KEY_SUNRISE_SUNSET_SKIES,
+            SecretWallpaperService.SUNRISE_SUNSET_SKIES_DEFAULT
+        )
+        sunriseSunsetSkiesSwitch.setChecked(sunriseSunsetSkiesEnabled)
+        sunriseSunsetSkiesSwitch.setOnCheckedChangeListener({ buttonView, isChecked ->
+            val intent: Intent = Intent(SecretWallpaperService.ACTION_SET_SUNRISE_SUNSET_SKIES)
+            intent.setPackage(packageName)
+            intent.putExtra(SecretWallpaperService.EXTRA_SUNRISE_SUNSET_SKIES_ENABLED, isChecked)
+            sendBroadcast(intent)
+            Toast.makeText(
+                this,
+                if (isChecked)
+                    R.string.settings_sunrise_sunset_skies_on
+                else
+                    R.string.settings_sunrise_sunset_skies_off,
                 Toast.LENGTH_SHORT
             ).show()
         })
