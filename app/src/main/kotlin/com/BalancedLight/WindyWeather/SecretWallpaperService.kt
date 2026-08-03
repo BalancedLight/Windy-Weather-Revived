@@ -472,6 +472,15 @@ class SecretWallpaperService : GLWallpaperService() {
         return this.currentTwilightTimeline.twilightTint
     }
 
+    private fun twilightStarsAlpha(sceneOrdinal: Int): Float {
+        val clearSkyScene = sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal
+                || sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal
+        if (!clearSkyScene || !this.isAutomaticTimeOfDayVisualsEnabled) {
+            return 0.0f
+        }
+        return this.currentTwilightTimeline.twilightStarsAlpha
+    }
+
     private fun activeSunProgress(): Float? {
         if (!this.isAutomaticTimeOfDayVisualsEnabled) {
             return null
@@ -2620,6 +2629,11 @@ class SecretWallpaperService : GLWallpaperService() {
                     this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_01, false)
                     this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_02, false)
                     this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_01, false)
+                    if ((com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.twilightStarsAlpha(i) ?: 0.0f) > 0.0f) {
+                        this.sky_stars!!.loadGLTexture(gl10, context, R.drawable.d_sky_stars, false)
+                    } else {
+                        this.sky_stars!!.deleteGLTexture(gl10, context)
+                    }
                     this.star!!.deleteGLTexture(gl10, context)
                     this.meteor!!.deleteGLTexture(gl10, context)
                     this.moon!!.deleteGLTexture(gl10, context)
@@ -3587,6 +3601,9 @@ class SecretWallpaperService : GLWallpaperService() {
             ) ?: TwilightTimeline.Rgb(1.0f, 1.0f, 1.0f)
             val clearFamilyScene =
                 loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal
+            val twilightStarsAlpha = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.twilightStarsAlpha(
+                loadedWeather
+            ) ?: 0.0f
             val freezingFogOverlay =
                 loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D4_FOG.ordinal && com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.isFreezingFogCode(
                     com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurrentWeatherCode
@@ -3623,11 +3640,12 @@ class SecretWallpaperService : GLWallpaperService() {
             if (loadedNight && (loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D3_DREARY.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D4_FOG.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D5_RAIN_SHOWERS.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D6_THUNDERSTORMS.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D9_SLEET.ordinal)) {
                 this.nightcover!!.shortdraw(gl10, 1.0f, 1.0f)
             }
-            if (clearFamilyScene && loadedNight) {
+            if (clearFamilyScene && (loadedNight || twilightStarsAlpha > 0.0f)) {
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(1.3f + skyShift, 7.0f, -29.9f)
                 gl10.glScalef(1.8f * this.mfLandscape, 0.45f, 0.0f)
-                this.sky_stars!!.shortdraw(gl10, 1.0f, 1.0f)
+                val starAlpha = if (loadedNight) 1.0f else twilightStarsAlpha
+                this.sky_stars!!.shortdraw(gl10, starAlpha, starAlpha)
             }
             if (!loadedNight && com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.shouldDrawSunForScene(loadedWeather) == true) {
                 val sunProgress = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.activeSunProgress()

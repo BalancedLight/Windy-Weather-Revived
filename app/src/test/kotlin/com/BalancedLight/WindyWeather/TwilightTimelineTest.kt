@@ -110,4 +110,17 @@ class TwilightTimelineTest {
         assertEquals(1.0f, duskStart.blue, 0.0001f)
         assertTrue(duskEnd.blue < duskStart.blue)
     }
+
+    @Test
+    fun `twilight stars fade out after sunrise and fade in before sunset`() {
+        val dawnStart = TwilightTimeline.resolve(360, 600, 1800).twilightStarsAlpha
+        val dawnEnd = TwilightTimeline.resolve(420, 600, 1800).twilightStarsAlpha
+        val duskStart = TwilightTimeline.resolve(1020, 600, 1800).twilightStarsAlpha
+        val duskEnd = TwilightTimeline.resolve(1080 - 1, 600, 1800).twilightStarsAlpha
+
+        assertEquals(1.0f, dawnStart, 0.0001f)
+        assertEquals(0.0f, dawnEnd, 0.0001f)
+        assertEquals(0.0f, duskStart, 0.0001f)
+        assertTrue(duskEnd > 0.9f)
+    }
 }

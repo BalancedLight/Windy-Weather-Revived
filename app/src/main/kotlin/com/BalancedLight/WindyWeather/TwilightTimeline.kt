@@ -30,6 +30,13 @@ internal object TwilightTimeline {
         val twilightProgress: Float,
         val hasValidDaylightData: Boolean
     ) {
+        val twilightStarsAlpha: Float
+            get() = when (phase) {
+                SkyPhase.MORNING -> 1.0f - twilightProgress
+                SkyPhase.SUNSET -> twilightProgress
+                else -> 0.0f
+            }
+
         val twilightTint: Rgb
             get() {
                 val strength = when (phase) {
