@@ -1,12 +1,19 @@
-# Windy Weather Revived
-
+<p align="center">
+  <img
+    src="https://github.com/user-attachments/assets/62bb84cf-efbd-448a-9e92-760711bb211c"
+    alt="Windy Weather Revived banner. It contains a background of two wind turbines against a bright blue sky with clouds and the sun./>
+    </img>
+</p>
+<p align="center">
 Windy Weather Revived is a revival and rebuild of the old Samsung S3 secret live wallpaper service for modern smartphones. It's built with Open-Meteo compatibility and experimental Samsung weather integration. 
 This project contains small fixes and improvements to the original, including a full port to Kotlin, all while keeping original features intact for those who want nothing changed.
+</p>
 
 ## Improvements
 
 * Full port to Open-Meteo weather
 * Upscaled textures, can be toggled off
+* Sunsets and sunrises
 * Force toggle day or night
 * Force toggle weather
 * Faster refreshes (10 minutes to 6 hours, or off)
