@@ -13,7 +13,7 @@ This project contains small fixes and improvements to the original, including a 
 
 * Full port to Open-Meteo weather
 * Upscaled textures, can be toggled off
-* Sunsets and sunrises
+* Dynamic sky engine — skies are live gradients that move continuously through night, sunrise, day and sunset, with stable daily colour variation and weather-aware foreground light (toggle it off for the original fixed skies)
 * Force toggle day or night
 * Force toggle weather
 * Faster refreshes (10 minutes to 6 hours, or off)

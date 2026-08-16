@@ -1,18 +1,39 @@
 package com.BalancedLight.WindyWeather
 
 import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.min
 import kotlin.math.sin
 
 /**
  * Resolves the daylight-dependent visuals from the local clock and the weather provider's
  * HHmm sunrise/sunset values.  It intentionally has no Android dependencies so its boundary
  * behaviour can be covered by unit tests.
+ *
+ * The sky colour is driven by [State.skyPosition], a continuous cycle position that runs
+ * 0 -> 4 across a day and never jumps:
+ *
+ *     0 = night, 1 = dawn peak (exactly sunrise), 2 = day, 3 = dusk peak (exactly sunset), 4 = 0
+ *
+ * Both twilight bands are centred on their event, so the most colourful moment lands on the
+ * sunrise/sunset instant itself rather than an hour to one side of it.
  */
 internal object TwilightTimeline {
     const val TWILIGHT_WINDOW_MINUTES = 60
+    const val TWILIGHT_HALF_WINDOW_MINUTES = 45
     const val CELESTIAL_GAP_MINUTES = 30
+    const val MINUTES_PER_DAY = 1440.0f
     const val HORIZON_CENTER_Y = -5.0f
     const val BODY_ARC_CREST_Y = 7.0f
+
+    const val SKY_NIGHT = 0.0f
+    const val SKY_DAWN = 1.0f
+    const val SKY_DAY = 2.0f
+    const val SKY_DUSK = 3.0f
+    const val SKY_CYCLE = 4.0f
+
+    /** How much of the star field is still visible at the sunrise/sunset instant. */
+    const val STARS_ALPHA_AT_EVENT = 0.35f
 
     enum class SkyPhase {
         NIGHT,
@@ -25,90 +46,118 @@ internal object TwilightTimeline {
 
     data class State(
         val phase: SkyPhase,
+        val skyPosition: Float,
         val daylightProgress: Float?,
         val nightProgress: Float?,
-        val twilightProgress: Float,
         val hasValidDaylightData: Boolean
     ) {
+        /**
+         * Distance from night measured along the cycle: 0 at deep night, 1 at the sunrise or
+         * sunset instant, 2 at midday.  Both halves of the day collapse onto the same curve.
+         */
+        val nightDistance: Float
+            get() = min(skyPosition, SKY_CYCLE - skyPosition)
+
+        /**
+         * Full strength through the night, [STARS_ALPHA_AT_EVENT] at sunrise/sunset, gone by the
+         * time the twilight band closes.
+         */
         val twilightStarsAlpha: Float
-            get() = when (phase) {
-                SkyPhase.MORNING -> 1.0f - twilightProgress
-                SkyPhase.SUNSET -> twilightProgress
-                else -> 0.0f
+            get() {
+                val distance = nightDistance
+                return if (distance <= 1.0f) {
+                    1.0f - ((1.0f - STARS_ALPHA_AT_EVENT) * smoothstep(distance))
+                } else {
+                    STARS_ALPHA_AT_EVENT * (1.0f - smoothstep(distance - 1.0f))
+                }
             }
 
+        /** Foreground-light fade, peaking at the sunrise/sunset instant. */
+        val twilightTintStrength: Float
+            get() = (1.0f - abs(nightDistance - 1.0f)).coerceIn(0.0f, 1.0f)
+
+        /**
+         * Legacy amber tint retained for timeline-only callers.  The renderer uses
+         * [SkyPalette.foregroundTint] so its foreground hue matches the daily sky variation.
+         */
         val twilightTint: Rgb
-            get() {
-                val strength = when (phase) {
-                    SkyPhase.MORNING -> 1.0f - twilightProgress
-                    SkyPhase.SUNSET -> twilightProgress
-                    else -> 0.0f
-                }
-                return Rgb(
-                    red = 1.0f,
-                    green = 1.0f - (0.18f * strength),
-                    blue = 1.0f - (0.30f * strength)
-                )
-            }
+            get() = Rgb(
+                red = 1.0f,
+                green = 1.0f - (0.18f * twilightTintStrength),
+                blue = 1.0f - (0.30f * twilightTintStrength)
+            )
     }
 
-    fun resolve(nowMinutes: Int, sunriseHhmm: Int, sunsetHhmm: Int): State {
+    fun resolve(nowMinutes: Int, sunriseHhmm: Int, sunsetHhmm: Int): State =
+        resolve(nowMinutes.toFloat(), sunriseHhmm, sunsetHhmm)
+
+    /**
+     * Sub-minute overload.  The sky gradient moves continuously, so sampling the clock only once
+     * a minute would step it several levels at a time; callers on the render path pass fractional
+     * minutes so the ramp stays smooth.
+     */
+    fun resolve(nowMinutes: Float, sunriseHhmm: Int, sunsetHhmm: Int): State {
         val sunriseMinutes = hhmmToMinutes(sunriseHhmm) ?: return fallbackState(nowMinutes)
         val sunsetMinutes = hhmmToMinutes(sunsetHhmm) ?: return fallbackState(nowMinutes)
         if (sunsetMinutes - sunriseMinutes <= TWILIGHT_WINDOW_MINUTES * 2) {
             return fallbackState(nowMinutes)
         }
 
-        val current = nowMinutes.coerceIn(0, 1439)
-        val daylightProgress = ((current - sunriseMinutes).toFloat() /
+        val current = nowMinutes.coerceIn(0.0f, MINUTES_PER_DAY - 0.0001f)
+        val half = twilightHalfWindow(sunriseMinutes, sunsetMinutes).toFloat()
+        val daylightProgress = ((current - sunriseMinutes) /
             (sunsetMinutes - sunriseMinutes).toFloat()).coerceIn(0.0f, 1.0f)
+        val isNight = current < sunriseMinutes || current >= sunsetMinutes
 
+        return State(
+            phase = phaseFor(current, sunriseMinutes, sunsetMinutes, half),
+            skyPosition = skyPosition(current, sunriseMinutes, sunsetMinutes, half),
+            daylightProgress = if (isNight) null else daylightProgress,
+            nightProgress = if (isNight) moonProgress(current, sunriseMinutes, sunsetMinutes) else null,
+            hasValidDaylightData = true
+        )
+    }
+
+    /**
+     * Half-width of each twilight band, shrunk on short days or short nights so the dawn and
+     * dusk bands can never overlap each other.
+     */
+    fun twilightHalfWindow(sunriseMinutes: Int, sunsetMinutes: Int): Int {
+        val dayLength = sunsetMinutes - sunriseMinutes
+        val nightLength = 1440 - dayLength
+        return min(
+            TWILIGHT_HALF_WINDOW_MINUTES,
+            min((dayLength - 1) / 2, (nightLength - 1) / 2)
+        ).coerceAtLeast(1)
+    }
+
+    private fun skyPosition(
+        current: Float,
+        sunriseMinutes: Int,
+        sunsetMinutes: Int,
+        half: Float
+    ): Float {
         return when {
-            current < sunriseMinutes -> {
-                State(
-                    phase = SkyPhase.NIGHT,
-                    daylightProgress = null,
-                    nightProgress = moonProgress(current, sunriseMinutes, sunsetMinutes),
-                    twilightProgress = 0.0f,
-                    hasValidDaylightData = true
-                )
-            }
+            current < sunriseMinutes - half -> SKY_NIGHT
+            current <= sunriseMinutes + half -> ((current - sunriseMinutes) / half) + SKY_DAWN
+            current < sunsetMinutes - half -> SKY_DAY
+            current <= sunsetMinutes + half -> SKY_DUSK + ((current - sunsetMinutes) / half)
+            else -> SKY_NIGHT
+        }.coerceIn(SKY_NIGHT, SKY_CYCLE)
+    }
 
-            current < sunriseMinutes + TWILIGHT_WINDOW_MINUTES -> State(
-                phase = SkyPhase.MORNING,
-                daylightProgress = daylightProgress,
-                nightProgress = null,
-                twilightProgress = ((current - sunriseMinutes).toFloat() /
-                    TWILIGHT_WINDOW_MINUTES.toFloat()).coerceIn(0.0f, 1.0f),
-                hasValidDaylightData = true
-            )
-
-            current < sunsetMinutes - TWILIGHT_WINDOW_MINUTES -> State(
-                phase = SkyPhase.DAY,
-                daylightProgress = daylightProgress,
-                nightProgress = null,
-                twilightProgress = 0.0f,
-                hasValidDaylightData = true
-            )
-
-            current < sunsetMinutes -> State(
-                phase = SkyPhase.SUNSET,
-                daylightProgress = daylightProgress,
-                nightProgress = null,
-                twilightProgress = ((current - (sunsetMinutes - TWILIGHT_WINDOW_MINUTES)).toFloat() /
-                    TWILIGHT_WINDOW_MINUTES.toFloat()).coerceIn(0.0f, 1.0f),
-                hasValidDaylightData = true
-            )
-
-            else -> {
-                State(
-                    phase = SkyPhase.NIGHT,
-                    daylightProgress = null,
-                    nightProgress = moonProgress(current, sunriseMinutes, sunsetMinutes),
-                    twilightProgress = 0.0f,
-                    hasValidDaylightData = true
-                )
-            }
+    private fun phaseFor(
+        current: Float,
+        sunriseMinutes: Int,
+        sunsetMinutes: Int,
+        half: Float
+    ): SkyPhase {
+        return when {
+            current < sunriseMinutes - half -> SkyPhase.NIGHT
+            current <= sunriseMinutes + half -> SkyPhase.MORNING
+            current < sunsetMinutes - half -> SkyPhase.DAY
+            current <= sunsetMinutes + half -> SkyPhase.SUNSET
+            else -> SkyPhase.NIGHT
         }
     }
 
@@ -117,6 +166,11 @@ internal object TwilightTimeline {
     fun bodyArcY(progress: Float): Float {
         val easedHeight = arcHeight(progress)
         return HORIZON_CENTER_Y + ((BODY_ARC_CREST_Y - HORIZON_CENTER_Y) * easedHeight * easedHeight)
+    }
+
+    fun smoothstep(t: Float): Float {
+        val clamped = t.coerceIn(0.0f, 1.0f)
+        return clamped * clamped * (3.0f - (2.0f * clamped))
     }
 
     fun hhmmToMinutes(hhmm: Int): Int? {
@@ -128,22 +182,23 @@ internal object TwilightTimeline {
         return (hour * 60) + minute
     }
 
-    private fun fallbackState(nowMinutes: Int): State {
-        return if (nowMinutes.coerceIn(0, 1439) in 360..1079) {
-            State(SkyPhase.DAY, null, null, 0.0f, false)
+    private fun fallbackState(nowMinutes: Float): State {
+        val clamped = nowMinutes.coerceIn(0.0f, MINUTES_PER_DAY - 0.0001f)
+        return if (clamped >= 360.0f && clamped < 1080.0f) {
+            State(SkyPhase.DAY, SKY_DAY, null, null, false)
         } else {
-            State(SkyPhase.NIGHT, null, null, 0.0f, false)
+            State(SkyPhase.NIGHT, SKY_NIGHT, null, null, false)
         }
     }
 
-    private fun moonProgress(current: Int, sunriseMinutes: Int, sunsetMinutes: Int): Float? {
-        val timelineCurrent = if (current < sunriseMinutes) current + 1440 else current
-        val moonStart = sunsetMinutes + CELESTIAL_GAP_MINUTES
-        val moonEnd = sunriseMinutes + 1440 - CELESTIAL_GAP_MINUTES
+    private fun moonProgress(current: Float, sunriseMinutes: Int, sunsetMinutes: Int): Float? {
+        val timelineCurrent =
+            if (current < sunriseMinutes) current + MINUTES_PER_DAY else current
+        val moonStart = (sunsetMinutes + CELESTIAL_GAP_MINUTES).toFloat()
+        val moonEnd = (sunriseMinutes + 1440 - CELESTIAL_GAP_MINUTES).toFloat()
         if (timelineCurrent < moonStart || timelineCurrent >= moonEnd) {
             return null
         }
-        return ((timelineCurrent - moonStart).toFloat() / (moonEnd - moonStart).toFloat())
-            .coerceIn(0.0f, 1.0f)
+        return ((timelineCurrent - moonStart) / (moonEnd - moonStart)).coerceIn(0.0f, 1.0f)
     }
 }

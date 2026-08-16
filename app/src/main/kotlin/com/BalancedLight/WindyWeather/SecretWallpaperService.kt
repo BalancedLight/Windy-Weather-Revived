@@ -430,12 +430,60 @@ class SecretWallpaperService : GLWallpaperService() {
         return nCurTime < com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService!!.mnSunriseTime || nCurTime >= com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService!!.mnSunsetTime
     }
 
-    private val currentTwilightTimeline: TwilightTimeline.State
+    private data class CachedTwilightVisuals(
+        val timeline: TwilightTimeline.State,
+        val localDateToken: Int,
+        val variation: SkyPalette.DailyVariation
+    )
+
+    @Volatile
+    private var mCachedTwilightVisuals: CachedTwilightVisuals? = null
+
+    @Volatile
+    private var mCachedTimelineStampMs: Long = 0L
+
+    /**
+     * Resolved at most four times a second and cached with its local-date palette selection.
+     *
+     * Two reasons for the cache.  It is read several times per frame -- foreground tint, star
+     * alpha, sun and moon progress, the moon gap, and now the sky gradient -- and each resolve
+     * allocated a [Calendar] plus a State, which is hundreds of allocations a second on the GL
+     * thread.  It also samples seconds rather than whole minutes: the gradient moves continuously,
+     * and a once-a-minute clock would step it several 8-bit levels at a time.  The same Calendar
+     * read gives daily dawn/dusk selection a stable local-date token without any extra work.
+     */
+    private val currentTwilightVisuals: CachedTwilightVisuals
         get() {
+            val nowMs = System.currentTimeMillis()
+            val cached = this.mCachedTwilightVisuals
+            val age = nowMs - this.mCachedTimelineStampMs
+            if (cached != null && age >= 0L && age < com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.TIMELINE_CACHE_MS) {
+                return cached
+            }
             val now = Calendar.getInstance()
-            val nowMinutes = (now.get(Calendar.HOUR_OF_DAY) * 60) + now.get(Calendar.MINUTE)
-            return TwilightTimeline.resolve(nowMinutes, this.mnSunriseTime, this.mnSunsetTime)
+            val nowMinutes = (now.get(Calendar.HOUR_OF_DAY) * 60.0f) +
+                now.get(Calendar.MINUTE).toFloat() +
+                (now.get(Calendar.SECOND) / 60.0f)
+            val localDateToken = SkyPalette.localDateToken(
+                now.get(Calendar.YEAR),
+                now.get(Calendar.DAY_OF_YEAR)
+            )
+            val resolved = TwilightTimeline.resolve(nowMinutes, this.mnSunriseTime, this.mnSunsetTime)
+            val visuals = CachedTwilightVisuals(
+                timeline = resolved,
+                localDateToken = localDateToken,
+                variation = SkyPalette.dailyVariationForDateToken(localDateToken)
+            )
+            this.mCachedTwilightVisuals = visuals
+            this.mCachedTimelineStampMs = nowMs
+            return visuals
         }
+
+    private val currentTwilightTimeline: TwilightTimeline.State
+        get() = this.currentTwilightVisuals.timeline
+
+    private val currentSkyVariation: SkyPalette.DailyVariation
+        get() = this.currentTwilightVisuals.variation
 
     private val isAutomaticTimeOfDayVisualsEnabled: Boolean
         get() = this.isSunriseSunsetSkyEnabled && this.dayNightMode == com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_AUTO
@@ -448,31 +496,103 @@ class SecretWallpaperService : GLWallpaperService() {
             return this.currentTwilightTimeline.phase
         }
 
-    private fun isTwilightSkyScene(sceneOrdinal: Int): Boolean {
-        return sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal
-                || sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D2_CLOUDY.ordinal
-                || sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal
+    /**
+     * True when skies are drawn as live gradients.  Turning the preference off restores the
+     * original fixed sky_01..sky_04 bitmaps, the sky_stars band, and the hard day/night switch.
+     */
+    private val isDynamicSkyEnabled: Boolean
+        get() = this.isSunriseSunsetSkyEnabled
+
+    /**
+     * Which gradient palette a scene uses.  Chosen from the scene alone, never from day/night, so
+     * the palette can't switch out from under a transition that is midway through blending.
+     *
+     * D4_FOG is the one scene whose look changes: it used the overcast sky by day but the clear
+     * night sky after dark, which would force exactly that mid-blend switch.  It is overcast now
+     * in both, which is also the more sensible reading of fog.
+     */
+    private fun skyFamilyForScene(sceneOrdinal: Int): SkyPalette.Family {
+        return when (sceneOrdinal) {
+            com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal,
+            com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D2_CLOUDY.ordinal,
+            com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D8_ICE_COLD.ordinal,
+            com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal ->
+                SkyPalette.Family.CLEAR
+
+            else -> SkyPalette.Family.OVERCAST
+        }
     }
 
-    private fun resolveDaySkyResource(sceneOrdinal: Int, defaultResourceId: Int): Int {
-        if (!this.isAutomaticTimeOfDayVisualsEnabled || !isTwilightSkyScene(sceneOrdinal)) {
-            return defaultResourceId
+    /**
+     * Position around the day cycle driving the gradient.  Forced day/night pins it to the plain
+     * day or night keyframe rather than disabling the gradient outright.
+     */
+    private fun currentSkyPosition(isNight: Boolean): Float {
+        if (!this.isAutomaticTimeOfDayVisualsEnabled) {
+            return if (isNight) TwilightTimeline.SKY_NIGHT else TwilightTimeline.SKY_DAY
         }
-        return when (this.currentTwilightTimeline.phase) {
-            TwilightTimeline.SkyPhase.MORNING -> R.drawable.sky_morning
-            TwilightTimeline.SkyPhase.SUNSET -> R.drawable.sky_sunset
-            else -> defaultResourceId
+        return this.currentTwilightTimeline.skyPosition
+    }
+
+    /**
+     * Alpha for the generated star field.
+     *
+     * The scene set is exactly those that used to load sky_02 after dark, which is where the old
+     * baked-in stars showed: clear, mostly clear, cloudy, fog and ice-cold.  Dreary, rain, thunder,
+     * snow and sleet loaded sky_04 and had no stars, and still don't.
+     */
+    private fun starFieldAlpha(sceneOrdinal: Int, isNight: Boolean): Float {
+        val starScene = when (sceneOrdinal) {
+            com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal,
+            com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D2_CLOUDY.ordinal,
+            com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D4_FOG.ordinal,
+            com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D8_ICE_COLD.ordinal,
+            com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal -> true
+
+            else -> false
+        }
+        if (!starScene) {
+            return 0.0f
+        }
+        if (!this.isAutomaticTimeOfDayVisualsEnabled) {
+            return if (isNight) 1.0f else 0.0f
+        }
+        return this.currentTwilightTimeline.twilightStarsAlpha
+    }
+
+    /**
+     * How brightly the sun disc reads for a scene.  Cloudy keeps a sun so twilight still has a
+     * light source, but heavily knocked back so it reads as glow diffused through the deck rather
+     * than a hard disc in front of it.
+     */
+    private fun sunBrightnessForScene(sceneOrdinal: Int): Float {
+        return if (sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D2_CLOUDY.ordinal) {
+            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.CLOUDY_SUN_BRIGHTNESS
+        } else {
+            1.0f
         }
     }
 
-    private fun foregroundTwilightTint(sceneOrdinal: Int, isNight: Boolean): TwilightTimeline.Rgb {
-        if (isNight || !this.isAutomaticTimeOfDayVisualsEnabled || !isTwilightSkyScene(sceneOrdinal)) {
+    private fun foregroundTwilightTint(sceneOrdinal: Int): TwilightTimeline.Rgb {
+        if (!this.isAutomaticTimeOfDayVisualsEnabled) {
             return TwilightTimeline.Rgb(1.0f, 1.0f, 1.0f)
         }
-        return this.currentTwilightTimeline.twilightTint
+        val visuals = this.currentTwilightVisuals
+        return SkyPalette.foregroundTint(
+            visuals.variation,
+            visuals.timeline.skyPosition,
+            visuals.timeline.twilightTintStrength,
+            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.twilightAppearanceForScene(
+                sceneOrdinal
+            ).foregroundTreatment
+        )
     }
 
+    /** Alpha for the legacy sky_stars band, which only runs when the dynamic sky is off. */
     private fun twilightStarsAlpha(sceneOrdinal: Int): Float {
+        if (this.isDynamicSkyEnabled) {
+            return 0.0f
+        }
         val clearSkyScene = sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal
                 || sceneOrdinal == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal
         if (!clearSkyScene || !this.isAutomaticTimeOfDayVisualsEnabled) {
@@ -1850,6 +1970,16 @@ class SecretWallpaperService : GLWallpaperService() {
     }
 
     class CSPRenderer(context: Context) : GLWallpaperService.Renderer {
+        /** Generated sky backdrop, used in place of `sky` when the dynamic sky is enabled. */
+        private var skyGradient: SkyGradientTexture? = null
+
+        /** Generated star field, replacing the stars that used to be baked into sky_02. */
+        private var starField: StarFieldTexture? = null
+
+        /** World position of the sun disc, so the lens flare can track it instead of guessing. */
+        private var mSunWorldX = 3.0f
+        private var mSunWorldY = 6.0f
+
         private var cityname: RectOneToSixteen? = null
         private var cloud1: RectOneToTwo? = null
         private var cloud2: RectOneToTwo? = null
@@ -2356,6 +2486,14 @@ class SecretWallpaperService : GLWallpaperService() {
                 this.sky!!.deleteGLTexture(gl, this.mContext)
                 this.sky = null
             }
+            if (this.skyGradient != null) {
+                this.skyGradient!!.release(gl)
+                this.skyGradient = null
+            }
+            if (this.starField != null) {
+                this.starField!!.release(gl)
+                this.starField = null
+            }
             if (this.sky_stars != null) {
                 this.sky_stars!!.deleteGLTexture(gl, this.mContext)
                 this.sky_stars = null
@@ -2522,6 +2660,8 @@ class SecretWallpaperService : GLWallpaperService() {
 
         private fun generateImages(context: Context?) {
             this.sky = Square(context, "sky")
+            this.skyGradient = SkyGradientTexture()
+            this.starField = StarFieldTexture()
             this.sky_stars = Square(context, "sky_stars")
             this.cloud1 = RectOneToTwo(context, "cloud1")
             this.cloud2 = RectOneToTwo(context, "cloud2")
@@ -2573,6 +2713,32 @@ class SecretWallpaperService : GLWallpaperService() {
             this.lawn_01 = RectOneToFour(context, "lawn_01")
         }
 
+        /**
+         * Binds a legacy sky bitmap, or releases it when the dynamic sky is on and the generated
+         * gradient is drawn in its place.  Routing every scene branch through here keeps them all
+         * otherwise unchanged, and keeps the 16 MB sky decode off the load path when it isn't used.
+         */
+        private fun loadSkyTexture(gl10: GL10?, context: Context?, textureId: Int) {
+            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.isDynamicSkyEnabled == true) {
+                this.sky!!.deleteGLTexture(gl10, context)
+                return
+            }
+            this.sky!!.loadGLTexture(gl10, context, textureId, false)
+        }
+
+        /**
+         * Binds the legacy sky_stars band.  The generated star field supersedes it -- and covers
+         * far more of the sky than its narrow strip did -- so with the dynamic sky on it is
+         * released instead of loaded, which also keeps its 4 MB off the heap.
+         */
+        private fun loadLegacyStarBand(gl10: GL10?, context: Context?) {
+            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.isDynamicSkyEnabled == true) {
+                this.sky_stars!!.deleteGLTexture(gl10, context)
+                return
+            }
+            this.sky_stars!!.loadGLTexture(gl10, context, R.drawable.d_sky_stars, false)
+        }
+
         private fun loadImages(gl10: GL10?, context: Context?, i: Int, z: Boolean) {
             val i2: Int
             val i3: Int
@@ -2606,15 +2772,7 @@ class SecretWallpaperService : GLWallpaperService() {
             this.isImageSetLoading = true
             if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal || i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal) {
                 if (!z) {
-                    this.sky!!.loadGLTexture(
-                        gl10,
-                        context,
-                        com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.resolveDaySkyResource(
-                            i,
-                            R.drawable.sky_01
-                        ) ?: R.drawable.sky_01,
-                        false
-                    )
+                    loadSkyTexture(gl10, context, R.drawable.sky_01)
                     if (mostlyClearScene) {
                         this.cloud1!!.loadGLTexture(gl10, context, R.drawable.cloud_a_01, false)
                         this.cloud2!!.loadGLTexture(gl10, context, R.drawable.cloud_b_01, false)
@@ -2630,7 +2788,7 @@ class SecretWallpaperService : GLWallpaperService() {
                     this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_02, false)
                     this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_01, false)
                     if ((com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.twilightStarsAlpha(i) ?: 0.0f) > 0.0f) {
-                        this.sky_stars!!.loadGLTexture(gl10, context, R.drawable.d_sky_stars, false)
+                        loadLegacyStarBand(gl10, context)
                     } else {
                         this.sky_stars!!.deleteGLTexture(gl10, context)
                     }
@@ -2638,8 +2796,8 @@ class SecretWallpaperService : GLWallpaperService() {
                     this.meteor!!.deleteGLTexture(gl10, context)
                     this.moon!!.deleteGLTexture(gl10, context)
                 } else {
-                    this.sky!!.loadGLTexture(gl10, context, R.drawable.sky_02, false)
-                    this.sky_stars!!.loadGLTexture(gl10, context, R.drawable.d_sky_stars, false)
+                    loadSkyTexture(gl10, context, R.drawable.sky_02)
+                    loadLegacyStarBand(gl10, context)
                     this.star!!.loadGLTexture(gl10, context, R.drawable.d_star, false)
                     this.meteor!!.loadGLTexture(gl10, context, R.drawable.d_meteor, false)
                     val i4: Int =
@@ -2699,17 +2857,9 @@ class SecretWallpaperService : GLWallpaperService() {
             } else if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D2_CLOUDY.ordinal || i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D4_FOG.ordinal || i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D8_ICE_COLD.ordinal) {
                 if (!z) {
                     if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D4_FOG.ordinal) {
-                        this.sky!!.loadGLTexture(gl10, context, R.drawable.sky_03, false)
+                        loadSkyTexture(gl10, context, R.drawable.sky_03)
                     } else {
-                        this.sky!!.loadGLTexture(
-                            gl10,
-                            context,
-                            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.resolveDaySkyResource(
-                                i,
-                                R.drawable.sky_01
-                            ) ?: R.drawable.sky_01,
-                            false
-                        )
+                        loadSkyTexture(gl10, context, R.drawable.sky_01)
                     }
                     if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D3_DREARY.ordinal || i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D4_FOG.ordinal) {
                         this.cloud1!!.loadGLTexture(gl10, context, R.drawable.cloud_a_03, false)
@@ -2726,7 +2876,7 @@ class SecretWallpaperService : GLWallpaperService() {
                     this.meteor!!.deleteGLTexture(gl10, context)
                     this.nightcover!!.deleteGLTexture(gl10, context)
                 } else {
-                    this.sky!!.loadGLTexture(gl10, context, R.drawable.sky_02, false)
+                    loadSkyTexture(gl10, context, R.drawable.sky_02)
                     if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D4_FOG.ordinal) {
                         this.cloud1!!.loadGLTexture(gl10, context, R.drawable.cloud_a_03, false)
                         this.cloud2!!.loadGLTexture(gl10, context, R.drawable.cloud_b_03, false)
@@ -2829,13 +2979,13 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
                 if (!z) {
                     // Day rain should use the lighter rain sky, not the night backdrop.
-                    this.sky!!.loadGLTexture(gl10, context, R.drawable.sky_03, false)
+                    loadSkyTexture(gl10, context, R.drawable.sky_03)
                     this.nightcover!!.deleteGLTexture(gl10, context)
                     this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_01, false)
                     this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_02, false)
                     this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_01, false)
                 } else {
-                    this.sky!!.loadGLTexture(gl10, context, R.drawable.sky_04, false)
+                    loadSkyTexture(gl10, context, R.drawable.sky_04)
                     this.nightcover!!.loadGLTexture(gl10, context, R.drawable.nightcover_01, false)
                     this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_03, false)
                     this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_04, false)
@@ -2893,7 +3043,7 @@ class SecretWallpaperService : GLWallpaperService() {
                     this.cloud2!!.loadGLTexture(gl10, context, R.drawable.cloud_b_04, true)
                 }
                 if (!z) {
-                    this.sky!!.loadGLTexture(gl10, context, R.drawable.sky_03, false)
+                    loadSkyTexture(gl10, context, R.drawable.sky_03)
                     this.nightcover!!.deleteGLTexture(gl10, context)
                     if (useSnowGroundTextures || i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D9_SLEET.ordinal) {
                         this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_06, false)
@@ -2905,7 +3055,7 @@ class SecretWallpaperService : GLWallpaperService() {
                         this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_01, false)
                     }
                 } else {
-                    this.sky!!.loadGLTexture(gl10, context, R.drawable.sky_04, false)
+                    loadSkyTexture(gl10, context, R.drawable.sky_04)
                     if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D9_SLEET.ordinal) {
                         this.nightcover!!.loadGLTexture(
                             gl10,
@@ -3058,16 +3208,16 @@ class SecretWallpaperService : GLWallpaperService() {
                     this.lightning3!!.loadGLTexture(gl10, context, R.drawable.g_lightning_03, false)
                 }
                 if (!z) {
-                    this.sky!!.loadGLTexture(gl10, context, R.drawable.sky_03, false)
+                    loadSkyTexture(gl10, context, R.drawable.sky_03)
                     this.nightcover!!.deleteGLTexture(gl10, context)
                     this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_05, false)
                     this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_02, false)
                     this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_03, false)
                 } else {
                     if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D6_THUNDERSTORMS.ordinal || i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D3_DREARY.ordinal) {
-                        this.sky!!.loadGLTexture(gl10, context, R.drawable.sky_04, false)
+                        loadSkyTexture(gl10, context, R.drawable.sky_04)
                     } else {
-                        this.sky!!.loadGLTexture(gl10, context, R.drawable.sky_02, false)
+                        loadSkyTexture(gl10, context, R.drawable.sky_02)
                     }
                     this.nightcover!!.loadGLTexture(gl10, context, R.drawable.nightcover_01, false)
                     this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_03, false)
@@ -3596,14 +3746,21 @@ class SecretWallpaperService : GLWallpaperService() {
             val loadedWeather = this.loadedImageset
             val loadedNight = this.loadedImagesetDayNight
             val foregroundTint = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.foregroundTwilightTint(
-                loadedWeather,
-                loadedNight
+                loadedWeather
             ) ?: TwilightTimeline.Rgb(1.0f, 1.0f, 1.0f)
             val clearFamilyScene =
                 loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal
             val twilightStarsAlpha = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.twilightStarsAlpha(
                 loadedWeather
             ) ?: 0.0f
+            val dynamicSky =
+                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.isDynamicSkyEnabled == true
+                        && this.skyGradient != null && this.starField != null
+            val starFieldAlpha =
+                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.starFieldAlpha(
+                    loadedWeather,
+                    loadedNight
+                ) ?: 0.0f
             val freezingFogOverlay =
                 loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D4_FOG.ordinal && com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.isFreezingFogCode(
                     com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurrentWeatherCode
@@ -3636,32 +3793,78 @@ class SecretWallpaperService : GLWallpaperService() {
             val skyScaleX =
                 if (this.mIsPortrait) 2.0f * this.mfLandscape else 2.2f * this.mfLandscape * landscapeSceneFill
             gl10.glScalef(skyScaleX, 2.0f, 0.0f)
-            this.sky!!.shortdraw(gl10, 1.0f, 1.0f)
+            if (dynamicSky) {
+                this.skyGradient!!.ensureUpdated(
+                    gl10,
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.skyFamilyForScene(
+                        loadedWeather
+                    ) ?: SkyPalette.Family.CLEAR,
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.currentSkyPosition(
+                        loadedNight
+                    ) ?: TwilightTimeline.SKY_DAY,
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.currentSkyVariation
+                        ?: SkyPalette.DEFAULT_DAILY_VARIATION,
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.twilightAppearanceForScene(
+                        loadedWeather
+                    ).variationStrength,
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.maxTextureSize
+                )
+                this.skyGradient!!.shortdraw(gl10, 1.0f, 1.0f)
+            } else {
+                this.sky!!.shortdraw(gl10, 1.0f, 1.0f)
+            }
+            // The generated field replaces the stars that used to be baked into sky_02, so it sits
+            // directly on the sky and under nightcover, exactly where those stars used to be.
+            if (dynamicSky && starFieldAlpha > 0.0f) {
+                this.starField!!.ensureGenerated(
+                    gl10,
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.maxTextureSize
+                )
+                gl10.glLoadIdentity()
+                gl10.glTranslatef(0.0f, 0.0f, -29.95f)
+                gl10.glScalef(
+                    getSquareScaleForScreenWidth(29.95f, 1.04f),
+                    getSquareScaleForScreenHeight(29.95f, 1.04f),
+                    0.0f
+                )
+                this.starField!!.shortdraw(gl10, starFieldAlpha, starFieldAlpha)
+            }
             if (loadedNight && (loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D3_DREARY.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D4_FOG.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D5_RAIN_SHOWERS.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D6_THUNDERSTORMS.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D9_SLEET.ordinal)) {
+                gl10.glLoadIdentity()
+                gl10.glTranslatef((-1.5f) + skyShift, -2.3f, -30.0f)
+                gl10.glScalef(skyScaleX, 2.0f, 0.0f)
                 this.nightcover!!.shortdraw(gl10, 1.0f, 1.0f)
             }
-            if (clearFamilyScene && (loadedNight || twilightStarsAlpha > 0.0f)) {
+            if (!dynamicSky && clearFamilyScene && (loadedNight || twilightStarsAlpha > 0.0f)) {
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(1.3f + skyShift, 7.0f, -29.9f)
                 gl10.glScalef(1.8f * this.mfLandscape, 0.45f, 0.0f)
                 val starAlpha = if (loadedNight) 1.0f else twilightStarsAlpha
                 this.sky_stars!!.shortdraw(gl10, starAlpha, starAlpha)
             }
+            val sunProgress = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.activeSunProgress()
+            // Cached on the renderer so the lens flare can project the same position instead of
+            // carrying its own hardcoded copy, which is how the two drifted apart.
+            this.mSunWorldX =
+                (skyShift * 0.2f) + (if (sunProgress == null) 3.0f else -3.0f + (6.0f * sunProgress))
+            this.mSunWorldY = if (sunProgress == null) 6.0f else TwilightTimeline.bodyArcY(sunProgress)
             if (!loadedNight && com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.shouldDrawSunForScene(loadedWeather) == true) {
-                val sunProgress = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.activeSunProgress()
-                val sunX = if (sunProgress == null) 3.0f else -3.0f + (6.0f * sunProgress)
-                val sunY = if (sunProgress == null) 6.0f else TwilightTimeline.bodyArcY(sunProgress)
-                this.fAlpha = 1.0f
+                val sunX = this.mSunWorldX
+                val sunY = this.mSunWorldY
+                this.fAlpha =
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.sunBrightnessForScene(
+                        loadedWeather
+                    ) ?: 1.0f
                 gl10.glLoadIdentity()
-                gl10.glTranslatef((skyShift * 0.2f) + sunX, sunY, -28.0f)
+                gl10.glTranslatef(sunX, sunY, -28.0f)
                 gl10.glRotatef(this.mFrameCnt * 0.54f, 0.0f, 0.0f, 1.0f)
                 this.sun1!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                 gl10.glLoadIdentity()
-                gl10.glTranslatef((skyShift * 0.2f) + sunX, sunY, -28.0f)
+                gl10.glTranslatef(sunX, sunY, -28.0f)
                 gl10.glRotatef(this.mFrameCnt * 0.36f, 0.0f, 0.0f, 1.0f)
                 this.sun2!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                 gl10.glLoadIdentity()
-                gl10.glTranslatef((skyShift * 0.2f) + sunX, sunY, -28.0f)
+                gl10.glTranslatef(sunX, sunY, -28.0f)
                 gl10.glRotatef(this.mFrameCnt * (-0.54f), 0.0f, 0.0f, 1.0f)
                 this.sun3!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
             } else if (loadedNight && (clearFamilyScene || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D8_ICE_COLD.ordinal)) {
@@ -3744,11 +3947,13 @@ class SecretWallpaperService : GLWallpaperService() {
                                     this.size_star[i2],
                                     0.0f
                                 )
-                                this.star!!.shortdraw(
-                                    gl10,
-                                    com.BalancedLight.WindyWeather.SecretWallpaperService.CSPRenderer.Companion.alpha_star!![i2],
-                                    com.BalancedLight.WindyWeather.SecretWallpaperService.CSPRenderer.Companion.alpha_star!![i2]
-                                )
+                                // Scaled by the star-field fade: with the twilight band centred on
+                                // sunset, night begins while the field is still only partly faded
+                                // in, and un-scaled twinkles would pop straight to full brightness.
+                                val twinkleAlpha =
+                                    com.BalancedLight.WindyWeather.SecretWallpaperService.CSPRenderer.Companion.alpha_star!![i2] *
+                                            (if (dynamicSky) starFieldAlpha else 1.0f)
+                                this.star!!.shortdraw(gl10, twinkleAlpha, twinkleAlpha)
                             }
                         }
                     }
@@ -4220,7 +4425,9 @@ class SecretWallpaperService : GLWallpaperService() {
             )
             gl10.glEnable(2929)
             gl10.glDisable(2929)
-            if (this.loadedImageset == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal && !this.loadedImagesetDayNight && this.bClearOn) {
+            // Mostly-clear loads the flare texture too but never drew it, so the disc could arc
+            // across a mostly-clear sky with no flare attached.
+            if (clearFamilyScene && !this.loadedImagesetDayNight && this.bClearOn) {
                 val f9 = this.sunlight_cnt
                 this.sunlight_cnt = 1.0f + f9
                 if (f9 == 200.0f) {
@@ -4228,7 +4435,15 @@ class SecretWallpaperService : GLWallpaperService() {
                     this.bClearOn = false
                 } else if (this.sunlight_cnt < 200.0f) {
                     gl10.glLoadIdentity()
-                    gl10.glTranslatef(0.6f + 3.0f + (skyShift * 0.15f), 6.0f - 1.75f, -20.5f)
+                    // The flare sits nearer the camera than the disc, and screen position is
+                    // worldX / |z|, so the disc's world position has to be projected onto the
+                    // flare's plane.  The old hardcoded translate was the legacy *static* sun
+                    // position, which is why the flare never followed the arc.
+                    gl10.glTranslatef(
+                        this.mSunWorldX * com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.SUN_FLARE_DEPTH_RATIO,
+                        this.mSunWorldY * com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.SUN_FLARE_DEPTH_RATIO,
+                        -com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.SUN_FLARE_DEPTH
+                    )
                     if (this.sunlight_cnt > 0.0f && this.sunlight_cnt < 160.0f) {
                         fSqrt = Math.sqrt((this.sunlight_cnt / 160.0f).toDouble()).toFloat()
                     } else if (this.sunlight_cnt < 200.0f) {
@@ -5377,6 +5592,53 @@ class SecretWallpaperService : GLWallpaperService() {
         const val FRAME_RATE_DEPENDENT_ANIMATION_DEFAULT: Boolean = true
         const val GROUND_PARALLAX_DEFAULT: Boolean = true
         const val SUNRISE_SUNSET_SKIES_DEFAULT: Boolean = true
+
+        /**
+         * Weather-specific strength and foreground treatment for the shared daily sky variation.
+         * Clear, mostly-clear, and cloudy scenes are intentionally vivid; all other scenes keep
+         * the same event character at a reduced strength.  The rain family never receives amber
+         * foreground lighting, even when the selected sky happens to be orange.
+         */
+        internal fun twilightAppearanceForScene(sceneOrdinal: Int): SkyPalette.SceneAppearance {
+            return when (sceneOrdinal) {
+                com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal,
+                com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D2_CLOUDY.ordinal,
+                com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal ->
+                    SkyPalette.SceneAppearance(
+                        SkyPalette.FULL_VARIATION_STRENGTH,
+                        SkyPalette.ForegroundTreatment.FULL
+                    )
+
+                com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D3_DREARY.ordinal,
+                com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D5_RAIN_SHOWERS.ordinal,
+                com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D6_THUNDERSTORMS.ordinal,
+                com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D9_SLEET.ordinal ->
+                    SkyPalette.SceneAppearance(
+                        SkyPalette.MUTED_VARIATION_STRENGTH,
+                        SkyPalette.ForegroundTreatment.COOL_NEUTRAL
+                    )
+
+                else -> SkyPalette.SceneAppearance(
+                    SkyPalette.MUTED_VARIATION_STRENGTH,
+                    SkyPalette.ForegroundTreatment.MUTED_MATCHED
+                )
+            }
+        }
+
+        /** How long a resolved twilight state is reused before the clock is read again. */
+        const val TIMELINE_CACHE_MS: Long = 250L
+
+        /** Sun brightness on cloudy scenes -- glow through the deck, not a disc in front of it. */
+        const val CLOUDY_SUN_BRIGHTNESS: Float = 0.35f
+
+        /** Depth the sun disc is drawn at. */
+        const val SUN_DEPTH: Float = 28.0f
+
+        /** Depth the lens flare is drawn at; nearer the camera so it washes over the foreground. */
+        const val SUN_FLARE_DEPTH: Float = 20.5f
+
+        /** Scales a world position on the sun's plane onto the flare's, keeping them aligned. */
+        const val SUN_FLARE_DEPTH_RATIO: Float = SUN_FLARE_DEPTH / SUN_DEPTH
         const val AEROWEATHER_REFRESH_SYNC_DEFAULT: Boolean = true
         var mMainService: SecretWallpaperService? = null
         var mWallpaperEngine: CSPWallpaperEngine? = null

@@ -8,19 +8,84 @@ import org.junit.Test
 
 class TwilightTimelineTest {
     @Test
-    fun `resolves non-hour aligned morning and sunset boundaries`() {
+    fun `centres non-hour aligned twilight bands on sunrise and sunset`() {
         val sunrise = 630
         val sunset = 1845
 
+        assertEquals(TwilightTimeline.SkyPhase.NIGHT, TwilightTimeline.resolve(344, sunrise, sunset).phase)
+        assertEquals(TwilightTimeline.SkyPhase.MORNING, TwilightTimeline.resolve(345, sunrise, sunset).phase)
         assertEquals(TwilightTimeline.SkyPhase.MORNING, TwilightTimeline.resolve(390, sunrise, sunset).phase)
-        assertEquals(TwilightTimeline.SkyPhase.DAY, TwilightTimeline.resolve(450, sunrise, sunset).phase)
-        assertEquals(TwilightTimeline.SkyPhase.DAY, TwilightTimeline.resolve(1064, sunrise, sunset).phase)
-        assertEquals(TwilightTimeline.SkyPhase.SUNSET, TwilightTimeline.resolve(1065, sunrise, sunset).phase)
-        assertEquals(TwilightTimeline.SkyPhase.NIGHT, TwilightTimeline.resolve(1125, sunrise, sunset).phase)
+        assertEquals(TwilightTimeline.SkyPhase.MORNING, TwilightTimeline.resolve(435, sunrise, sunset).phase)
+        assertEquals(TwilightTimeline.SkyPhase.DAY, TwilightTimeline.resolve(436, sunrise, sunset).phase)
+        assertEquals(TwilightTimeline.SkyPhase.DAY, TwilightTimeline.resolve(1079, sunrise, sunset).phase)
+        assertEquals(TwilightTimeline.SkyPhase.SUNSET, TwilightTimeline.resolve(1080, sunrise, sunset).phase)
+        assertEquals(TwilightTimeline.SkyPhase.SUNSET, TwilightTimeline.resolve(1170, sunrise, sunset).phase)
+        assertEquals(TwilightTimeline.SkyPhase.NIGHT, TwilightTimeline.resolve(1171, sunrise, sunset).phase)
     }
 
     @Test
-    fun `uses a continuous daylight arc throughout special sky windows`() {
+    fun `sky position peaks exactly on sunrise and sunset`() {
+        val sunrise = 600
+        val sunset = 1800
+
+        assertEquals(
+            TwilightTimeline.SKY_NIGHT,
+            TwilightTimeline.resolve(315, sunrise, sunset).skyPosition,
+            0.0001f
+        )
+        assertEquals(
+            TwilightTimeline.SKY_DAWN,
+            TwilightTimeline.resolve(360, sunrise, sunset).skyPosition,
+            0.0001f
+        )
+        assertEquals(
+            TwilightTimeline.SKY_DAY,
+            TwilightTimeline.resolve(405, sunrise, sunset).skyPosition,
+            0.0001f
+        )
+        assertEquals(
+            TwilightTimeline.SKY_DAY,
+            TwilightTimeline.resolve(720, sunrise, sunset).skyPosition,
+            0.0001f
+        )
+        assertEquals(
+            TwilightTimeline.SKY_DUSK,
+            TwilightTimeline.resolve(1080, sunrise, sunset).skyPosition,
+            0.0001f
+        )
+        assertEquals(
+            TwilightTimeline.SKY_CYCLE,
+            TwilightTimeline.resolve(1125, sunrise, sunset).skyPosition,
+            0.0001f
+        )
+        assertEquals(
+            TwilightTimeline.SKY_NIGHT,
+            TwilightTimeline.resolve(1126, sunrise, sunset).skyPosition,
+            0.0001f
+        )
+    }
+
+    @Test
+    fun `sky position never jumps across a whole day`() {
+        val sunrise = 630
+        val sunset = 1845
+        var previous = TwilightTimeline.resolve(0, sunrise, sunset).skyPosition
+
+        for (minute in 1..1439) {
+            val current = TwilightTimeline.resolve(minute, sunrise, sunset).skyPosition
+            // The only legal discontinuity is the 4 -> 0 wrap that closes the cycle.
+            val delta = Math.abs(current - previous)
+            val wrapped = Math.abs(delta - TwilightTimeline.SKY_CYCLE)
+            assertTrue(
+                "jump at minute $minute: $previous -> $current",
+                delta <= 0.05f || wrapped <= 0.05f
+            )
+            previous = current
+        }
+    }
+
+    @Test
+    fun `uses a continuous daylight arc throughout the day`() {
         val sunrise = 600
         val sunset = 1800
 
@@ -28,7 +93,6 @@ class TwilightTimelineTest {
         val noon = TwilightTimeline.resolve(720, sunrise, sunset)
         val sunsetState = TwilightTimeline.resolve(1050, sunrise, sunset)
 
-        assertEquals(0.5f, morning.twilightProgress, 0.0001f)
         assertTrue(morning.daylightProgress!! < noon.daylightProgress!!)
         assertTrue(noon.daylightProgress!! < sunsetState.daylightProgress!!)
         assertTrue(TwilightTimeline.arcHeight(noon.daylightProgress!!) > 0.99f)
@@ -93,6 +157,7 @@ class TwilightTimelineTest {
         assertEquals(TwilightTimeline.SkyPhase.DAY, invalid.phase)
         assertNull(invalid.daylightProgress)
         assertFalse(invalid.hasValidDaylightData)
+        assertEquals(TwilightTimeline.SKY_DAY, invalid.skyPosition, 0.0001f)
         assertEquals(TwilightTimeline.SkyPhase.DAY, shortDay.phase)
         assertNull(shortDay.daylightProgress)
         assertFalse(shortDay.hasValidDaylightData)
@@ -100,27 +165,53 @@ class TwilightTimelineTest {
     }
 
     @Test
-    fun `twilight tint fades in the intended direction`() {
-        val dawnStart = TwilightTimeline.resolve(360, 600, 1800).twilightTint
-        val dawnEnd = TwilightTimeline.resolve(420, 600, 1800).twilightTint
-        val duskStart = TwilightTimeline.resolve(1020, 600, 1800).twilightTint
-        val duskEnd = TwilightTimeline.resolve(1080 - 1, 600, 1800).twilightTint
+    fun `shrinks the twilight band so dawn and dusk can never overlap`() {
+        // A day only just longer than the fallback threshold still has to fit two bands.
+        val half = TwilightTimeline.twilightHalfWindow(600, 730)
+        assertTrue(half >= 1)
+        assertTrue(half * 2 < 730 - 600)
 
-        assertTrue(dawnStart.blue < dawnEnd.blue)
-        assertEquals(1.0f, duskStart.blue, 0.0001f)
-        assertTrue(duskEnd.blue < duskStart.blue)
+        // A short night has to fit its bands too.
+        val shortNightHalf = TwilightTimeline.twilightHalfWindow(60, 1380)
+        assertTrue(shortNightHalf >= 1)
+        assertTrue(shortNightHalf * 2 < 1440 - (1380 - 60))
+
+        // A normal day gets the full window.
+        assertEquals(
+            TwilightTimeline.TWILIGHT_HALF_WINDOW_MINUTES,
+            TwilightTimeline.twilightHalfWindow(360, 1080)
+        )
     }
 
     @Test
-    fun `twilight stars fade out after sunrise and fade in before sunset`() {
-        val dawnStart = TwilightTimeline.resolve(360, 600, 1800).twilightStarsAlpha
-        val dawnEnd = TwilightTimeline.resolve(420, 600, 1800).twilightStarsAlpha
-        val duskStart = TwilightTimeline.resolve(1020, 600, 1800).twilightStarsAlpha
-        val duskEnd = TwilightTimeline.resolve(1080 - 1, 600, 1800).twilightStarsAlpha
+    fun `twilight tint peaks at the sunrise and sunset instant`() {
+        val night = TwilightTimeline.resolve(300, 600, 1800).twilightTint
+        val atSunrise = TwilightTimeline.resolve(360, 600, 1800).twilightTint
+        val midday = TwilightTimeline.resolve(720, 600, 1800).twilightTint
+        val atSunset = TwilightTimeline.resolve(1080, 600, 1800).twilightTint
 
-        assertEquals(1.0f, dawnStart, 0.0001f)
-        assertEquals(0.0f, dawnEnd, 0.0001f)
-        assertEquals(0.0f, duskStart, 0.0001f)
-        assertTrue(duskEnd > 0.9f)
+        assertEquals(1.0f, night.blue, 0.0001f)
+        assertEquals(1.0f, midday.blue, 0.0001f)
+        assertEquals(0.70f, atSunrise.blue, 0.0001f)
+        assertEquals(0.70f, atSunset.blue, 0.0001f)
+        assertEquals(1.0f, atSunset.red, 0.0001f)
+        assertTrue(atSunset.green < 1.0f)
+    }
+
+    @Test
+    fun `stars linger through the sunrise and sunset instant`() {
+        val deepNight = TwilightTimeline.resolve(300, 600, 1800).twilightStarsAlpha
+        val atSunrise = TwilightTimeline.resolve(360, 600, 1800).twilightStarsAlpha
+        val afterDawnBand = TwilightTimeline.resolve(405, 600, 1800).twilightStarsAlpha
+        val beforeDuskBand = TwilightTimeline.resolve(1035, 600, 1800).twilightStarsAlpha
+        val atSunset = TwilightTimeline.resolve(1080, 600, 1800).twilightStarsAlpha
+        val afterDuskBand = TwilightTimeline.resolve(1125, 600, 1800).twilightStarsAlpha
+
+        assertEquals(1.0f, deepNight, 0.0001f)
+        assertEquals(TwilightTimeline.STARS_ALPHA_AT_EVENT, atSunrise, 0.0001f)
+        assertEquals(0.0f, afterDawnBand, 0.0001f)
+        assertEquals(0.0f, beforeDuskBand, 0.0001f)
+        assertEquals(TwilightTimeline.STARS_ALPHA_AT_EVENT, atSunset, 0.0001f)
+        assertEquals(1.0f, afterDuskBand, 0.0001f)
     }
 }
