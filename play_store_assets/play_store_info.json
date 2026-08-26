@@ -1,0 +1,56 @@
+{
+  "package_name": "com.BalancedLight.WindyWeather",
+  "title": "Windy Weather",
+  "is_published": true,
+  "privacy_policy_url": "https://balancedlight.github.io/Windy-Weather-Revamped/privacy-policy.html",
+  "full_description_file": "google_play_full_description.txt",
+  "non_affiliation_notice": "Windy Weather Revived is an independent, unofficial open-source project. It is not affiliated with, endorsed by, or sponsored by Samsung Electronics. Samsung and related product names are trademarks of their respective owners.",
+  "data_safety": {
+    "data_collected": [
+      {
+        "category": "Location",
+        "types": [
+          {
+            "type": "Approximate location",
+            "purposes": ["App functionality"],
+            "optional": true,
+            "linked_to_identity": false,
+            "processed_ephemerally": false,
+            "encrypted_in_transit": true
+          }
+        ]
+      }
+    ],
+    "data_shared": [
+      {
+        "category": "Location",
+        "types": [
+          {
+            "type": "Approximate location",
+            "purposes": ["App functionality"],
+            "optional": true,
+            "linked_to_identity": false,
+            "processed_ephemerally": false,
+            "encrypted_in_transit": true
+          }
+        ]
+      }
+    ],
+    "not_collected_or_shared": ["Precise location"],
+    "remote_deletion_request": false,
+    "deletion_note": "Withdrawing consent clears app-local rounded coordinates and location-derived weather and city cache data."
+  },
+  "declarations": {
+    "accounts": false,
+    "advertising": false,
+    "analytics": false,
+    "health": false,
+    "audio": false,
+    "race_or_ethnicity": false,
+    "installed_apps_transmitted": false
+  },
+  "manual_account_owner_actions": [
+    "Accept Play App Signing Terms of Service",
+    "Accept United States export laws"
+  ]
+}

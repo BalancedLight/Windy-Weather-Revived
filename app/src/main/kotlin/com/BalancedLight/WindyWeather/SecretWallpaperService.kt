@@ -58,9 +58,8 @@ import javax.microedition.khronos.opengles.GL11
 import javax.microedition.khronos.opengles.GL11Ext
 
 class SecretWallpaperService : GLWallpaperService() {
-    private var mSamsungSyncBridge: SamsungWeatherSyncBridge? = null
+    private var mDistributionIntegration: DistributionServiceIntegration? = null
     private var mReceiver: WeatherReceiver? = null
-    private var mAeroWeatherSyncReceiver: AeroWeatherSyncReceiver? = null
     private val TESTMODE = false
     private lateinit var mContext: Context
     private var mLoadedImageset: Int =
@@ -147,14 +146,8 @@ class SecretWallpaperService : GLWallpaperService() {
             unregisterReceiver(this.mReceiver)
             this.mReceiver = null
         }
-        if (this.mAeroWeatherSyncReceiver != null) {
-            unregisterReceiver(this.mAeroWeatherSyncReceiver)
-            this.mAeroWeatherSyncReceiver = null
-        }
-        if (this.mSamsungSyncBridge != null) {
-            this.mSamsungSyncBridge?.stop()
-            this.mSamsungSyncBridge = null
-        }
+        this.mDistributionIntegration?.stop()
+        this.mDistributionIntegration = null
     }
 
     override fun onCreateEngine(): WallpaperService.Engine {
@@ -207,8 +200,10 @@ class SecretWallpaperService : GLWallpaperService() {
         this.mbIsNight = this.isNightEffective
         this.mLastTwilightSkyPhase = this.currentTwilightSkyPhase
         registerNetworkCallback()
-        this.mSamsungSyncBridge = SamsungWeatherSyncBridge(this.mContext)
-        this.mSamsungSyncBridge?.start()
+        this.mDistributionIntegration = DistributionFeatures.createServiceIntegration(
+            this.mContext
+        ) { origin -> requestWeatherRefresh(true, true, origin) }
+        this.mDistributionIntegration?.start()
         val filter2: IntentFilter = IntentFilter()
         filter2.addAction("android.intent.action.USER_PRESENT")
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_FORCE_WEATHER_REFRESH)
@@ -231,15 +226,8 @@ class SecretWallpaperService : GLWallpaperService() {
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_LEGACY_CLASSIC_WATERMARK)
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_TEXTURE_PACK)
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_WEATHER_SOURCE_MODE)
-        filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_AEROWEATHER_REFRESH_SYNC)
-        filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SAMSUNG_PROVIDER_CHANGED_INTERNAL)
         this.mReceiver = WeatherReceiver()
         registerReceiverCompat(this.mReceiver, filter2)
-        val aeroFilter: IntentFilter = IntentFilter()
-        aeroFilter.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_AEROWEATHER_SYNC_REFRESH)
-        this.mAeroWeatherSyncReceiver =
-            AeroWeatherSyncReceiver()
-        registerReceiverCompatExported(this.mAeroWeatherSyncReceiver, aeroFilter)
         updateWeatherInfo()
         val stale: Boolean = WeatherDataCoordinator.isCacheStale(
             this.mContext,
@@ -366,6 +354,12 @@ class SecretWallpaperService : GLWallpaperService() {
         this.mLastWeatherRefreshMs = now
         recordSyncOrigin(origin)
         val sourceMode = this.weatherSourceMode
+        if (sourceMode != com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.WEATHER_SOURCE_SAMSUNG_DEVICE &&
+            !LocationWeatherConsent.isTransferAllowed(this.mContext)
+        ) {
+            Log.d("WindyWeather", "Weather refresh skipped until approximate-location consent")
+            return
+        }
         WeatherDataCoordinator.refreshAsync(this.mContext, sourceMode, { snapshot ->
             if (updateWeatherInfo()) {
                 setImageSetChange(true)
@@ -1040,9 +1034,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 val sourceMode: String? =
                     safeIntent.getStringExtra(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.EXTRA_WEATHER_SOURCE_MODE)
                 this@SecretWallpaperService.weatherSourceMode = sourceMode
-                if (this@SecretWallpaperService.mSamsungSyncBridge != null) {
-                    this@SecretWallpaperService.mSamsungSyncBridge?.onModeChanged(sourceMode)
-                }
+                this@SecretWallpaperService.mDistributionIntegration?.onWeatherSourceChanged(sourceMode)
                 this@SecretWallpaperService.requestWeatherRefresh(
                     true,
                     true,
@@ -1051,88 +1043,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 if (this@SecretWallpaperService.updateWeatherInfo()) {
                     this@SecretWallpaperService.setImageSetChange(true)
                 }
-            } else if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_AEROWEATHER_REFRESH_SYNC.equals(
-                    action
-                )
-            ) {
-                val enabled: Boolean = safeIntent.getBooleanExtra(
-                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.EXTRA_AEROWEATHER_REFRESH_SYNC_ENABLED,
-                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.AEROWEATHER_REFRESH_SYNC_DEFAULT
-                )
-                this@SecretWallpaperService.setAeroWeatherRefreshSyncEnabled(enabled)
-                if (this@SecretWallpaperService.mSamsungSyncBridge != null) {
-                    this@SecretWallpaperService.mSamsungSyncBridge?.onSyncSettingChanged()
-                }
-            } else if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SAMSUNG_PROVIDER_CHANGED_INTERNAL.equals(
-                    action
-                )
-            ) {
-                this@SecretWallpaperService.recordSyncOrigin(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_SAMSUNG_OBSERVER)
-                if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.WEATHER_SOURCE_SAMSUNG_DEVICE.equals(
-                        this@SecretWallpaperService.weatherSourceMode
-                    )
-                ) {
-                    WeatherDataCoordinator.refreshSamsungOnlyAsync(
-                        this@SecretWallpaperService.mContext,
-                        { snapshot ->
-                            if (this@SecretWallpaperService.updateWeatherInfo()) {
-                                this@SecretWallpaperService.setImageSetChange(true)
-                            }
-                            this@SecretWallpaperService.requestWeatherRefresh(
-                                true,
-                                true,
-                                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_SAMSUNG_OBSERVER
-                            )
-                        })
-                } else {
-                    this@SecretWallpaperService.requestWeatherRefresh(
-                        true,
-                        true,
-                        com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_SAMSUNG_OBSERVER
-                    )
-                }
             }
-        }
-    }
-
-    inner class AeroWeatherSyncReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent?) {
-            val safeIntent = intent ?: return
-            val action: String? = safeIntent.action
-            if (!com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_AEROWEATHER_SYNC_REFRESH.equals(
-                    action
-                )
-            ) {
-                return
-            }
-            val sourcePackage: String? =
-                safeIntent.getStringExtra(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.EXTRA_AEROWEATHER_SYNC_SOURCE_PACKAGE)
-            if (sourcePackage != null && sourcePackage.length > 0 && !com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.TRUSTED_AEROWEATHER_PACKAGE.equals(
-                    sourcePackage
-                )
-            ) {
-                Log.d(
-                    "WindyWeather",
-                    "Ignoring AeroWeather sync from untrusted package=" + sourcePackage
-                )
-                return
-            }
-            if (!com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.isAeroWeatherRefreshSyncEnabled(
-                    context
-                )
-            ) {
-                Log.d("WindyWeather", "Ignoring AeroWeather sync while sync is disabled")
-                return
-            }
-            Log.d(
-                "WindyWeather",
-                "Accepted AeroWeather sync refresh source=" + sourcePackage
-            )
-            this@SecretWallpaperService.requestWeatherRefresh(
-                true,
-                true,
-                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_AEROWEATHER_SYNC
-            )
         }
     }
 
@@ -1650,30 +1561,27 @@ class SecretWallpaperService : GLWallpaperService() {
                     com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_WEATHER_SOURCE_MODE,
                     com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.WEATHER_SOURCE_OPEN_METEO
                 )
-            return normalizeWeatherSourceMode(sourceMode)
+            val normalized = normalizeWeatherSourceMode(sourceMode)
+            return if (normalized == com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.WEATHER_SOURCE_SAMSUNG_DEVICE &&
+                !SamsungWeatherRepository.isLikelySupported(this.mContext)
+            ) {
+                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.WEATHER_SOURCE_OPEN_METEO
+            } else normalized
         }
         private set(sourceMode) {
             if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
                 return
             }
-            val normalized = normalizeWeatherSourceMode(sourceMode)
+            val requested = normalizeWeatherSourceMode(sourceMode)
+            val normalized = if (requested == com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.WEATHER_SOURCE_SAMSUNG_DEVICE &&
+                !SamsungWeatherRepository.isLikelySupported(this.mContext)
+            ) com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.WEATHER_SOURCE_OPEN_METEO else requested
             com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.edit().putString(
                 com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_WEATHER_SOURCE_MODE,
                 normalized
             ).apply()
             Log.d("WindyWeather", "Weather source mode set to " + normalized)
         }
-
-    private fun setAeroWeatherRefreshSyncEnabled(enabled: Boolean) {
-        if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
-            return
-        }
-        com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.edit().putBoolean(
-            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_SYNC_WITH_AEROWEATHER_REFRESH,
-            enabled
-        ).apply()
-        Log.d("WindyWeather", "AeroWeather refresh sync set to " + enabled)
-    }
 
     private var texturePack: String?
         get() {
@@ -5508,12 +5416,6 @@ class SecretWallpaperService : GLWallpaperService() {
             "com.BalancedLight.WindyWeather.action.SET_TEXTURE_PACK"
         val ACTION_SET_WEATHER_SOURCE_MODE: String =
             "com.BalancedLight.WindyWeather.action.SET_WEATHER_SOURCE_MODE"
-        val ACTION_SET_AEROWEATHER_REFRESH_SYNC: String =
-            "com.BalancedLight.WindyWeather.action.SET_AEROWEATHER_REFRESH_SYNC"
-        val ACTION_SAMSUNG_PROVIDER_CHANGED_INTERNAL: String =
-            "com.BalancedLight.WindyWeather.action.SAMSUNG_PROVIDER_CHANGED_INTERNAL"
-        val ACTION_AEROWEATHER_SYNC_REFRESH: String =
-            "com.BalancedLight.WindyWeather.action.AEROWEATHER_SYNC_REFRESH"
         val EXTRA_WEATHER_REFRESH_INTERVAL_MINUTES: String =
             "extra_weather_refresh_interval_minutes"
         val EXTRA_TARGET_FPS: String = "extra_target_fps"
@@ -5538,9 +5440,6 @@ class SecretWallpaperService : GLWallpaperService() {
             "extra_legacy_classic_watermark_enabled"
         val EXTRA_TEXTURE_PACK: String = "extra_texture_pack"
         val EXTRA_WEATHER_SOURCE_MODE: String = "extra_weather_source_mode"
-        val EXTRA_AEROWEATHER_REFRESH_SYNC_ENABLED: String =
-            "extra_aeroweather_refresh_sync_enabled"
-        val EXTRA_AEROWEATHER_SYNC_SOURCE_PACKAGE: String = "extra_aeroweather_sync_source_package"
         val PREF_KEY_WEATHER_REFRESH_INTERVAL_MINUTES: String =
             "pref_weather_refresh_interval_minutes"
         val PREF_KEY_TARGET_FPS: String = "pref_target_fps"
@@ -5561,7 +5460,6 @@ class SecretWallpaperService : GLWallpaperService() {
         val PREF_KEY_LEGACY_CLASSIC_WATERMARK: String = "pref_legacy_classic_watermark"
         val PREF_KEY_TEXTURE_PACK: String = "pref_texture_pack"
         val PREF_KEY_WEATHER_SOURCE_MODE: String = "pref_weather_source_mode"
-        val PREF_KEY_SYNC_WITH_AEROWEATHER_REFRESH: String = "pref_sync_with_aeroweather_refresh"
         val PREF_KEY_LAST_SAMSUNG_OBSERVER_TRIGGER_MS: String = "last_samsung_observer_trigger_ms"
         val PREF_KEY_LAST_HYBRID_IMMEDIATE_REFRESH_MS: String = "last_hybrid_immediate_refresh_ms"
         val PREF_KEY_LAST_SAMSUNG_NUDGE_MS: String = "last_samsung_nudge_ms"
@@ -5570,10 +5468,9 @@ class SecretWallpaperService : GLWallpaperService() {
         val WEATHER_SOURCE_OPEN_METEO: String = "open_meteo"
         val WEATHER_SOURCE_SAMSUNG_DEVICE: String = "samsung_device"
         val ORIGIN_SAMSUNG_OBSERVER: String = "samsung_observer"
-        val ORIGIN_AEROWEATHER_SYNC: String = "aeroweather_sync"
+        val ORIGIN_EXTERNAL_SYNC: String = "external_sync"
         val ORIGIN_APP_REFRESH: String = "app_refresh"
         val ORIGIN_MANUAL_USER: String = "manual_user"
-        private val TRUSTED_AEROWEATHER_PACKAGE = "com.BalancedLight.AeroWeather"
         private val PREF_KEY_LAST_WEATHER_CONDITION = "last_weather_conditon_num_2"
         private val PREF_KEY_LAST_PREV_WEATHER_CONDITION = "last_prev_weather_conditon_num_2"
         val TEXTURE_PACK_HQ: String = "hq"
@@ -5639,7 +5536,6 @@ class SecretWallpaperService : GLWallpaperService() {
 
         /** Scales a world position on the sun's plane onto the flare's, keeping them aligned. */
         const val SUN_FLARE_DEPTH_RATIO: Float = SUN_FLARE_DEPTH / SUN_DEPTH
-        const val AEROWEATHER_REFRESH_SYNC_DEFAULT: Boolean = true
         var mMainService: SecretWallpaperService? = null
         var mWallpaperEngine: CSPWallpaperEngine? = null
         private var mbImageSetChange = false
@@ -5752,11 +5648,11 @@ class SecretWallpaperService : GLWallpaperService() {
             ) {
                 return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_SAMSUNG_OBSERVER
             }
-            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_AEROWEATHER_SYNC.equals(
+            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_EXTERNAL_SYNC.equals(
                     origin
                 )
             ) {
-                return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_AEROWEATHER_SYNC
+                return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_EXTERNAL_SYNC
             }
             if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_MANUAL_USER.equals(
                     origin
@@ -5860,15 +5756,6 @@ class SecretWallpaperService : GLWallpaperService() {
                 com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_LAST_SYNC_ORIGIN,
                 com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_APP_REFRESH
             ) ?: com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_APP_REFRESH
-        }
-
-        fun isAeroWeatherRefreshSyncEnabled(context: Context): Boolean {
-            return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.getSyncPrefs(
-                context
-            ).getBoolean(
-                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_SYNC_WITH_AEROWEATHER_REFRESH,
-                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.AEROWEATHER_REFRESH_SYNC_DEFAULT
-            )
         }
 
         fun resolveTextureResource(context: Context?, textureId: Int): Int {

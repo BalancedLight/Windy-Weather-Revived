@@ -25,7 +25,7 @@ internal object SamsungRefreshNudger {
     )
 
     fun tryNudge(context: Context?, origin: String?) {
-        if (context == null) {
+        if (context == null || !SamsungWeatherRepository.isSamsungDevice()) {
             return
         }
         val appContext: Context = context.getApplicationContext()

@@ -12,6 +12,10 @@ permissions:
 
 jobs:
   build:
+    strategy:
+      fail-fast: false
+      matrix:
+        distribution: [play, github]
     runs-on: ubuntu-latest
 
     steps:
@@ -30,15 +34,35 @@ jobs:
       - name: Make Gradle Wrapper executable
         run: chmod +x gradlew
 
-      - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --console=plain --stacktrace
+      - name: Test, lint, and build Play
+        if: matrix.distribution == 'play'
+        run: ./gradlew testPlayDebugUnitTest lintPlayRelease bundlePlayRelease --console=plain --stacktrace
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --console=plain --stacktrace
+      - name: Test, lint, and build GitHub
+        if: matrix.distribution == 'github'
+        run: ./gradlew testGithubDebugUnitTest lintGithubRelease assembleGithubRelease --console=plain --stacktrace
 
-      - name: Upload debug APK
+      - name: Verify R8 release outputs
+        shell: bash
+        run: |
+          r8_dir="app/build/outputs/mapping/${{ matrix.distribution }}Release"
+          test -s "$r8_dir/configuration.txt"
+          test -s "$r8_dir/mapping.txt"
+          test -s "$r8_dir/resources.txt"
+          test -s "$r8_dir/usage.txt"
+
+          if [[ "${{ matrix.distribution }}" == "play" ]]; then
+            bundle_entries="$(unzip -Z1 app/build/outputs/bundle/playRelease/app-play-release.aab)"
+            grep -Fxq 'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map' <<< "$bundle_entries"
+            grep -Fxq 'BUNDLE-METADATA/com.android.tools/r8.json' <<< "$bundle_entries"
+          fi
+
+      - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: WindyWeather-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: WindyWeather-${{ matrix.distribution }}-release
+          path: |
+            app/build/outputs/bundle/playRelease/*.aab
+            app/build/outputs/apk/github/release/*.apk
+            app/build/outputs/mapping/${{ matrix.distribution }}Release/*.txt
           if-no-files-found: error

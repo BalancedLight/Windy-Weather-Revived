@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="settings_location_disclosure_message">Windy Weather uses your approximate location to fetch local weather and moon information. If you continue, rounded coordinates are sent over HTTPS to Open-Meteo and the United States Naval Observatory when you refresh and automatically as often as every 15 minutes. Coordinates and weather details are stored locally until you turn this feature off. Open-Meteo may retain API logs containing coordinates for up to 90 days. You can withdraw consent at any time in settings.</string>
+    <string name="settings_sync_aeroweather_refresh_toggle">Sync with AeroWeather refresh</string>
+    <string name="settings_sync_aeroweather_refresh_on">Windy Weather now syncs when AeroWeather refreshes.</string>
+    <string name="settings_sync_aeroweather_refresh_off">AeroWeather-triggered sync is disabled.</string>
+</resources>

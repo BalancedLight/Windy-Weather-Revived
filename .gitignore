@@ -10,6 +10,7 @@ app/debug/
 .gradle-local/
 .kotlin/
 .idea/
+.scratch/
 
 *.iml
 local.properties
@@ -21,3 +22,4 @@ WeatherWallOriginal.zip
 *.keystore
 keystore.properties
 signing.properties
+app/play/

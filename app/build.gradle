@@ -5,19 +5,32 @@ plugins {
 
 android {
     namespace = "com.BalancedLight.WindyWeather"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.BalancedLight.WindyWeather"
         minSdk = 21
-        targetSdk = 34
-        versionCode = 1
+        targetSdk = 36
+        versionCode = 3
         versionName = "1.1.0"
+    }
+
+    flavorDimensions += "distribution"
+    productFlavors {
+        play {
+            dimension = "distribution"
+        }
+        github {
+            dimension = "distribution"
+            applicationIdSuffix = ".github"
+            versionNameSuffix = "-github"
+        }
     }
 
     buildTypes {
         release {
-            minifyEnabled = false
+            minifyEnabled = true
+            shrinkResources = true
             proguardFiles(
                     getDefaultProguardFile('proguard-android-optimize.txt'),
                     'proguard-rules.pro'
@@ -51,6 +64,14 @@ android {
             manifest.srcFile "src/main/AndroidManifest.xml"
             java.srcDirs = ["src/main/java", "src/main/kotlin"]
             res.srcDirs = ["res"]
+        }
+        play {
+            java.srcDirs = ["src/play/kotlin"]
+            res.srcDirs = ["src/play/res"]
+        }
+        github {
+            java.srcDirs = ["src/github/kotlin"]
+            res.srcDirs = ["src/github/res"]
         }
     }
 }

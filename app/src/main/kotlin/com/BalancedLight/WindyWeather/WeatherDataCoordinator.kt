@@ -6,156 +6,119 @@ import android.os.Looper
 import android.util.Log
 
 internal object WeatherDataCoordinator {
-    private val TAG = "WeatherCoordinator"
+    private const val TAG = "WeatherCoordinator"
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     fun refreshAsync(
         context: Context,
         sourceMode: String?,
         callback: OpenMeteoWeatherRepository.Callback?
     ) {
-        val appContext: Context = context.applicationContext
-        if (!SecretWallpaperService.WEATHER_SOURCE_SAMSUNG_DEVICE.equals(sourceMode)) {
+        val appContext = context.applicationContext
+        if (sourceMode != SecretWallpaperService.WEATHER_SOURCE_SAMSUNG_DEVICE) {
+            if (!LocationWeatherConsent.isTransferAllowed(appContext)) {
+                notify(callback, OpenMeteoWeatherRepository.readFromCache(appContext))
+                return
+            }
             OpenMeteoWeatherRepository.refreshAsync(appContext, callback)
             return
         }
 
-        val samsungSnapshot: SamsungWeatherRepository.SamsungSnapshot? =
-            SamsungWeatherRepository.fetchLatest(appContext)
-        OpenMeteoWeatherRepository.refreshAsync(appContext) { openMeteoSnapshot ->
-            val baseline: WeatherSnapshot? = if (openMeteoSnapshot != null)
-                openMeteoSnapshot
-            else
-                OpenMeteoWeatherRepository.readFromCache(appContext)
-            val result: WeatherSnapshot
-            if (samsungSnapshot == null || !samsungSnapshot.hasAnyData()) {
-                result = if (baseline != null)
-                    com.BalancedLight.WindyWeather.WeatherDataCoordinator.copyWithSource(
-                        baseline,
-                        WeatherSnapshot.SOURCE_OPEN_METEO_FALLBACK
-                    )
-                else
-                    WeatherSnapshot.empty()
+        Thread({
+            val samsung = SamsungWeatherRepository.fetchLatest(appContext)
+            if (LocationWeatherConsent.isTransferAllowed(appContext)) {
+                OpenMeteoWeatherRepository.refreshAsync(appContext) { remote ->
+                    finishSamsungRefresh(appContext, samsung, remote, callback)
+                }
             } else {
-                result =
-                    com.BalancedLight.WindyWeather.WeatherDataCoordinator.mergeSamsungWithFallback(
-                        samsungSnapshot,
-                        baseline
-                    )
+                finishSamsungRefresh(
+                    appContext,
+                    samsung,
+                    OpenMeteoWeatherRepository.readFromCache(appContext),
+                    callback
+                )
             }
-            OpenMeteoWeatherRepository.writeToCache(appContext, result)
-            Log.d(
-                com.BalancedLight.WindyWeather.WeatherDataCoordinator.TAG,
-                "Resolved weather source=" + result.codeSource + " mode=" + sourceMode
-            )
-            if (callback != null) {
-                callback.onWeatherUpdated(result)
-            }
-        }
+        }, "ww-samsung-refresh").start()
     }
 
     fun refreshSamsungOnlyAsync(context: Context, callback: OpenMeteoWeatherRepository.Callback?) {
-        val appContext: Context = context.applicationContext
+        val appContext = context.applicationContext
         Thread({
-            val samsungSnapshot: SamsungWeatherRepository.SamsungSnapshot? =
-                SamsungWeatherRepository.fetchLatest(appContext)
-            val baseline: WeatherSnapshot? = OpenMeteoWeatherRepository.readFromCache(appContext)
-            val result: WeatherSnapshot?
-            if (samsungSnapshot == null || !samsungSnapshot.hasAnyData()) {
-                result = if (baseline != null)
-                    com.BalancedLight.WindyWeather.WeatherDataCoordinator.copyWithSource(
-                        baseline,
-                        WeatherSnapshot.SOURCE_OPEN_METEO_FALLBACK
-                    )
-                else
-                    WeatherSnapshot.empty()
-            } else {
-                result =
-                    com.BalancedLight.WindyWeather.WeatherDataCoordinator.mergeSamsungWithFallback(
-                        samsungSnapshot,
-                        baseline
-                    )
-            }
-            OpenMeteoWeatherRepository.writeToCache(appContext, result)
-            if (callback != null) {
-                Handler(Looper.getMainLooper()).post({ callback.onWeatherUpdated(result) })
-            }
+            finishSamsungRefresh(
+                appContext,
+                SamsungWeatherRepository.fetchLatest(appContext),
+                OpenMeteoWeatherRepository.readFromCache(appContext),
+                callback
+            )
         }, "ww-samsung-only-refresh").start()
     }
 
-    fun readFromCache(context: Context): WeatherSnapshot {
-        return OpenMeteoWeatherRepository.readFromCache(context) ?: WeatherSnapshot.empty()
+    fun readFromCache(context: Context): WeatherSnapshot =
+        OpenMeteoWeatherRepository.readFromCache(context) ?: WeatherSnapshot.empty()
+
+    fun isCacheStale(context: Context, maxAgeMs: Long): Boolean =
+        OpenMeteoWeatherRepository.isCacheStale(context, maxAgeMs)
+
+    fun isSamsungLikelyAvailable(context: Context?): Boolean =
+        SamsungWeatherRepository.isLikelySupported(context)
+
+    fun hasSamsungWeatherPermission(context: Context?): Boolean =
+        SamsungWeatherRepository.hasReadDangerousProviderPermission(context)
+
+    private fun finishSamsungRefresh(
+        context: Context,
+        samsung: SamsungWeatherRepository.SamsungSnapshot?,
+        baseline: WeatherSnapshot?,
+        callback: OpenMeteoWeatherRepository.Callback?
+    ) {
+        val result = if (samsung == null || !samsung.hasAnyData()) {
+            baseline?.let { copyWithSource(it, WeatherSnapshot.SOURCE_OPEN_METEO_FALLBACK) }
+                ?: WeatherSnapshot.empty()
+        } else {
+            mergeSamsungWithFallback(samsung, baseline)
+        }
+        OpenMeteoWeatherRepository.writeToCache(context, result)
+        Log.d(TAG, "Resolved local Samsung weather source=${result.codeSource}")
+        notify(callback, result)
     }
 
-    fun isCacheStale(context: Context, maxAgeMs: Long): Boolean {
-        return OpenMeteoWeatherRepository.isCacheStale(context, maxAgeMs)
-    }
-
-    fun isSamsungLikelyAvailable(context: Context?): Boolean {
-        return SamsungWeatherRepository.isLikelySupported(context)
-    }
-
-    fun hasSamsungWeatherPermission(context: Context?): Boolean {
-        return SamsungWeatherRepository.hasReadDangerousProviderPermission(context)
+    private fun notify(
+        callback: OpenMeteoWeatherRepository.Callback?,
+        snapshot: WeatherSnapshot?
+    ) {
+        if (callback != null) mainHandler.post { callback.onWeatherUpdated(snapshot) }
     }
 
     private fun mergeSamsungWithFallback(
         samsung: SamsungWeatherRepository.SamsungSnapshot,
         baseline: WeatherSnapshot?
     ): WeatherSnapshot {
-        val safeBaseline: WeatherSnapshot =
-            if (baseline != null) baseline else WeatherSnapshot.empty()
-
-        var weatherCode: Int =
-            samsung.weatherCode ?: safeBaseline.weatherCode
-        if (weatherCode == WeatherSnapshot.UNKNOWN_WEATHER_CODE) {
-            weatherCode = 2
-        }
-        val currentTemp: Int =
-            samsung.currentTempC ?: safeBaseline.currentTempC
-        val highTemp: Int =
-            samsung.highTempC ?: safeBaseline.highTempC
-        val lowTemp: Int = samsung.lowTempC ?: safeBaseline.lowTempC
-        val humidity: Int =
-            samsung.humidityPercent ?: safeBaseline.humidityPercent
-        val wind: Float =
-            samsung.windSpeedKmh ?: safeBaseline.windSpeedKmh
-        val sunrise: Int =
-            samsung.sunriseTime ?: safeBaseline.sunriseTime
-        val sunset: Int =
-            samsung.sunsetTime ?: safeBaseline.sunsetTime
-        val city: String = if (samsung.cityName != null && samsung.cityName.isNotEmpty())
-            samsung.cityName
-        else
-            safeBaseline.cityName
-        var lastUpdated: Long =
-            if (samsung.lastUpdatedMs > 0L) samsung.lastUpdatedMs else safeBaseline.lastUpdatedMs
-        if (lastUpdated <= 0L) {
-            lastUpdated = System.currentTimeMillis()
-        }
-
-        val codeSource: String = if (samsung.isCompleteForOverride)
+        val safe = baseline ?: WeatherSnapshot.empty()
+        val code = samsung.weatherCode ?: safe.weatherCode
+        val source = if (samsung.isCompleteForOverride) {
             WeatherSnapshot.SOURCE_SAMSUNG
-        else
+        } else {
             WeatherSnapshot.SOURCE_SAMSUNG_WITH_OPEN_METEO_FALLBACK
-
+        }
         return WeatherSnapshot(
-            weatherCode,
-            currentTemp,
-            highTemp,
-            lowTemp,
-            humidity,
-            wind,
-            sunrise,
-            sunset,
-            safeBaseline.moonPhase,
-            city,
-            lastUpdated,
-            codeSource
+            if (code == WeatherSnapshot.UNKNOWN_WEATHER_CODE) 2 else code,
+            samsung.currentTempC ?: safe.currentTempC,
+            samsung.highTempC ?: safe.highTempC,
+            samsung.lowTempC ?: safe.lowTempC,
+            samsung.humidityPercent ?: safe.humidityPercent,
+            samsung.windSpeedKmh ?: safe.windSpeedKmh,
+            samsung.sunriseTime ?: safe.sunriseTime,
+            samsung.sunsetTime ?: safe.sunsetTime,
+            safe.moonPhase,
+            samsung.cityName?.takeIf { it.isNotEmpty() } ?: safe.cityName,
+            samsung.lastUpdatedMs.takeIf { it > 0 } ?: safe.lastUpdatedMs.takeIf { it > 0 }
+                ?: System.currentTimeMillis(),
+            source
         )
     }
 
-    private fun copyWithSource(snapshot: WeatherSnapshot, source: String): WeatherSnapshot {
-        return WeatherSnapshot(
+    private fun copyWithSource(snapshot: WeatherSnapshot, source: String): WeatherSnapshot =
+        WeatherSnapshot(
             snapshot.weatherCode,
             snapshot.currentTempC,
             snapshot.highTempC,
@@ -166,8 +129,7 @@ internal object WeatherDataCoordinator {
             snapshot.sunsetTime,
             snapshot.moonPhase,
             snapshot.cityName,
-            if (snapshot.lastUpdatedMs > 0L) snapshot.lastUpdatedMs else System.currentTimeMillis(),
+            snapshot.lastUpdatedMs.takeIf { it > 0 } ?: System.currentTimeMillis(),
             source
         )
-    }
 }

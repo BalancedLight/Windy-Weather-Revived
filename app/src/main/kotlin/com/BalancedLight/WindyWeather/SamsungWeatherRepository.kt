@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import androidx.core.content.ContextCompat
 import java.util.Locale
@@ -70,7 +71,7 @@ internal object SamsungWeatherRepository {
         }
 
     fun isLikelySupported(context: Context?): Boolean {
-        if (context == null) {
+        if (context == null || !isSamsungDevice()) {
             return false
         }
         val packageManager: PackageManager? = context.getPackageManager()
@@ -102,7 +103,7 @@ internal object SamsungWeatherRepository {
     }
 
     fun hasReadDangerousProviderPermission(context: Context?): Boolean {
-        if (context == null) {
+        if (context == null || !isSamsungDevice()) {
             return false
         }
         try {
@@ -113,7 +114,7 @@ internal object SamsungWeatherRepository {
     }
 
     fun fetchLatest(context: Context?): SamsungSnapshot? {
-        if (context == null || !com.BalancedLight.WindyWeather.SamsungWeatherRepository.isLikelySupported(
+        if (context == null || !isSamsungDevice() || !com.BalancedLight.WindyWeather.SamsungWeatherRepository.isLikelySupported(
                 context
             )
         ) {
@@ -142,6 +143,12 @@ internal object SamsungWeatherRepository {
             context,
             com.BalancedLight.WindyWeather.SamsungWeatherRepository.FALLBACK_PROVIDER_URIS
         )
+    }
+
+    fun isSamsungDevice(): Boolean = isSamsungManufacturer(Build.MANUFACTURER)
+
+    internal fun isSamsungManufacturer(manufacturer: String?): Boolean {
+        return manufacturer?.trim()?.equals("samsung", ignoreCase = true) == true
     }
 
     private fun queryUris(context: Context, uris: Array<String?>): SamsungSnapshot? {
