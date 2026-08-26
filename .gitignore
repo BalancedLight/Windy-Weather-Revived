@@ -22,3 +22,4 @@ WeatherWallOriginal.zip
 *.keystore
 keystore.properties
 signing.properties
+app/play/
