@@ -5,4 +5,4 @@ Windy Weather Revived is an independent, unofficial open-source project. It is n
 Approximate-location weather is optional and off until you accept the in-app disclosure. Rounded coordinates are sent securely to Open-Meteo only for app functionality. The app is permanently free and ad-free.
 
 Weather data by Open-Meteo under CC BY 4.0: https://open-meteo.com/
-Privacy policy: https://balancedlight.github.io/Windy-Weather-Revamped/privacy-policy.html
+Privacy policy: https://balancedlight.github.io/Windy-Weather-Revived/privacy-policy.html

@@ -10,7 +10,7 @@ This project contains small fixes and improvements to the original, including a 
 
 > Windy Weather Revived is an independent, unofficial open-source project. It is not affiliated with, endorsed by, or sponsored by Samsung Electronics. Samsung and related product names are trademarks of their respective owners.
 
-Weather data is provided by [Open-Meteo](https://open-meteo.com/) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Windy Weather Revived is permanently free and ad-free and uses Open-Meteo only under its non-commercial terms. See the [Privacy Policy](https://balancedlight.github.io/Windy-Weather-Revamped/privacy-policy.html).
+Weather data is provided by [Open-Meteo](https://open-meteo.com/) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Windy Weather Revived is permanently free and ad-free and uses Open-Meteo only under its non-commercial terms. See the [Privacy Policy](https://balancedlight.github.io/Windy-Weather-Revived/privacy-policy.html).
 
 ## Improvements
 

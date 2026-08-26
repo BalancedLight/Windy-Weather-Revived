@@ -1039,6 +1039,6 @@ class SecretWallpaperSetting : Activity() {
         private val PREF_KEY_SHOW_WEATHER_DEBUG_TEXT = "pref_show_weather_debug_text"
         private val WEATHER_REFRESH_INTERVAL_MINUTES = intArrayOf(10, 15, 30, 60, 180, 360, 0)
         private const val PRIVACY_POLICY_URL =
-            "https://balancedlight.github.io/Windy-Weather-Revamped/privacy-policy.html"
+            "https://balancedlight.github.io/Windy-Weather-Revived/privacy-policy.html"
     }
 }

@@ -4,4 +4,4 @@ Windy Weather Revived is an independent, unofficial open-source project. It is n
 
 This separately installable `.github` distribution retains the optional USNO moon-information lookup and AeroWeather synchronization on eligible Samsung devices. Approximate-location transfers remain off until the in-app disclosure is accepted and Android coarse location permission is granted.
 
-Weather data by [Open-Meteo](https://open-meteo.com/) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). See the [privacy policy](https://balancedlight.github.io/Windy-Weather-Revamped/privacy-policy.html).
+Weather data by [Open-Meteo](https://open-meteo.com/) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). See the [privacy policy](https://balancedlight.github.io/Windy-Weather-Revived/privacy-policy.html).
