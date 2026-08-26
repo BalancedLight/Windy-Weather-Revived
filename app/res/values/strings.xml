@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="app_name">Windy Weather</string>
+    <string name="independence_notice">Windy Weather Revived is an independent, unofficial open-source project. It is not affiliated with, endorsed by, or sponsored by Samsung Electronics. Samsung and related product names are trademarks of their respective owners.</string>
+    <string name="settings_privacy_policy">Privacy Policy</string>
+    <string name="settings_location_weather_consent">Use approximate location for weather</string>
+    <string name="settings_location_disclosure_title">Approximate location for weather</string>
+    <string name="settings_location_disclosure_continue">Continue</string>
+    <string name="settings_location_disclosure_cancel">Not now</string>
+    <string name="settings_location_consent_required">Enable approximate location weather and accept the disclosure first.</string>
+    <string name="settings_location_consent_revoked">Location weather disabled and local location data cleared.</string>
+    <string name="settings_location_permission_denied">Approximate location permission was not granted.</string>
+    <string name="open_meteo_attribution">Weather data by Open-Meteo (CC BY 4.0): https://open-meteo.com/</string>
     <string name="setting_title">Weather auto update settings</string>
     <string name="wallpaper_description">Reflects the current weather via a windmill scene</string>
     <string name="cancel">Cancel</string>
@@ -17,12 +27,9 @@
     <string name="settings_weather_refresh_started">Refreshing weather in background...</string>
     <string name="settings_weather_refreshed">Weather refresh complete.</string>
     <string name="settings_weather_refresh_failed">Weather refresh failed. Check network/location.</string>
-    <string name="settings_weather_source_samsung_toggle">Use Samsung device weather (experimental, overrides Open-Meteo)</string>
-    <string name="settings_sync_aeroweather_refresh_toggle">Sync with AeroWeather refresh</string>
+    <string name="settings_weather_source_samsung_toggle">Use Samsung device weather (experimental, unofficial)</string>
     <string name="settings_weather_source_samsung_on">Samsung device weather preferred.</string>
     <string name="settings_weather_source_open_meteo_on">Open-Meteo weather preferred.</string>
-    <string name="settings_sync_aeroweather_refresh_on">Windy Weather now syncs when AeroWeather refreshes.</string>
-    <string name="settings_sync_aeroweather_refresh_off">AeroWeather-triggered sync is disabled.</string>
     <string name="settings_weather_source_fallback">Samsung weather unavailable. Using Open-Meteo fallback.</string>
     <string name="settings_weather_permission_requesting">Grant Samsung Weather permission to enable device weather data.</string>
     <string name="settings_weather_permission_granted">Samsung Weather permission granted.</string>

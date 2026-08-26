@@ -1,13 +1,16 @@
 <p align="center">
   <img
     src="https://github.com/user-attachments/assets/62bb84cf-efbd-448a-9e92-760711bb211c"
-    alt="Windy Weather Revived banner. It contains a background of two wind turbines against a bright blue sky with clouds and the sun./>
-    </img>
+    alt="Windy Weather Revived banner with two wind turbines against a bright blue sky with clouds and the sun." />
 </p>
 <p align="center">
 Windy Weather Revived is a revival and rebuild of the old Samsung S3 secret live wallpaper service for modern smartphones. It's built with Open-Meteo compatibility and experimental Samsung weather integration. 
 This project contains small fixes and improvements to the original, including a full port to Kotlin, all while keeping original features intact for those who want nothing changed.
 </p>
+
+> Windy Weather Revived is an independent, unofficial open-source project. It is not affiliated with, endorsed by, or sponsored by Samsung Electronics. Samsung and related product names are trademarks of their respective owners.
+
+Weather data is provided by [Open-Meteo](https://open-meteo.com/) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Windy Weather Revived is permanently free and ad-free and uses Open-Meteo only under its non-commercial terms. See the [Privacy Policy](https://balancedlight.github.io/Windy-Weather-Revamped/privacy-policy.html).
 
 ## Improvements
 
@@ -26,11 +29,11 @@ This project contains small fixes and improvements to the original, including a 
 ## Build
 
 ```powershell
-.\gradlew.bat clean assembleDebug
-.\gradlew.bat lintDebug
+.\gradlew.bat testPlayDebugUnitTest lintPlayRelease bundlePlayRelease
+.\gradlew.bat testGithubDebugUnitTest lintGithubRelease assembleGithubRelease
 ```
 
-The app module is `app`. The package/application ID remains `com.BalancedLight.WindyWeather` for installed-app and wallpaper-component compatibility.
+The Play distribution retains `com.BalancedLight.WindyWeather`. The GitHub distribution is separately installable as `com.BalancedLight.WindyWeather.github` and retains the optional USNO moon lookup and AeroWeather synchronization.
 
 ## Installation
 Download and install the APK, and open your phone wallpaper selector, then select Windy Weather.

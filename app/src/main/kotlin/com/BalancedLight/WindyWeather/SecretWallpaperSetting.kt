@@ -2,9 +2,11 @@ package com.BalancedLight.WindyWeather
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -28,6 +30,7 @@ import java.util.Locale
 class SecretWallpaperSetting : Activity() {
     private var locationStatus: TextView? = null
     private var weatherDebugText: TextView? = null
+    private var locationConsentSwitch: Switch? = null
     private lateinit var prefs: SharedPreferences
 
     protected override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,8 +68,7 @@ class SecretWallpaperSetting : Activity() {
         val groundParallaxSwitch: Switch = findViewById(R.id.switch_ground_parallax)
         val sunriseSunsetSkiesSwitch: Switch = findViewById(R.id.switch_sunrise_sunset_skies)
         val samsungWeatherSwitch: Switch = findViewById(R.id.switch_use_samsung_weather)
-        val syncAeroWeatherRefreshSwitch: Switch =
-            findViewById(R.id.switch_sync_aeroweather_refresh)
+        this.locationConsentSwitch = findViewById(R.id.switch_location_weather_consent)
         val showWeatherDebugTextSwitch: Switch = findViewById(R.id.switch_show_weather_debug_text)
         val texturePackGroup: RadioGroup = findViewById(R.id.radio_texture_pack)
         val dayNightGroup: RadioGroup = findViewById(R.id.radio_day_night_mode)
@@ -83,15 +85,24 @@ class SecretWallpaperSetting : Activity() {
         val sleetSceneButton: Button = findViewById(R.id.btn_force_sleet)
         this.weatherDebugText = findViewById(R.id.text_weather_debug_info)
 
-        permissionButton.setOnClickListener({ v -> requestLocationPermissionIfNeeded() })
+        permissionButton.setOnClickListener({ showLocationDisclosure() })
+        findViewById<Button>(R.id.btn_privacy_policy).setOnClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL)))
+        }
         locationButton.setOnClickListener({ v -> startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) })
         refreshButton.setOnClickListener({ v ->
-            Toast.makeText(this, R.string.settings_weather_refresh_started, Toast.LENGTH_SHORT)
-                .show()
             val selectedSourceMode: String? = if (samsungWeatherSwitch.isChecked)
                 SecretWallpaperService.WEATHER_SOURCE_SAMSUNG_DEVICE
             else
                 SecretWallpaperService.WEATHER_SOURCE_OPEN_METEO
+            if (selectedSourceMode == SecretWallpaperService.WEATHER_SOURCE_OPEN_METEO &&
+                !LocationWeatherConsent.isTransferAllowed(this)
+            ) {
+                Toast.makeText(this, R.string.settings_location_consent_required, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            Toast.makeText(this, R.string.settings_weather_refresh_started, Toast.LENGTH_SHORT)
+                .show()
             WeatherDataCoordinator.refreshAsync(
                 this,
                 selectedSourceMode,
@@ -123,13 +134,23 @@ class SecretWallpaperSetting : Activity() {
         })
         closeButton.setOnClickListener({ v -> finish() })
 
+        val samsungDevice = SamsungWeatherRepository.isSamsungDevice()
+        val samsungProviderAvailable = samsungDevice && WeatherDataCoordinator.isSamsungLikelyAvailable(this)
+        samsungWeatherSwitch.visibility = if (samsungDevice) View.VISIBLE else View.GONE
+        samsungWeatherSwitch.isEnabled = samsungProviderAvailable
+        if (!samsungProviderAvailable) {
+            prefs.edit().putString(
+                SecretWallpaperService.PREF_KEY_WEATHER_SOURCE_MODE,
+                SecretWallpaperService.WEATHER_SOURCE_OPEN_METEO
+            ).apply()
+        }
         val configuredWeatherSource = normalizeWeatherSourceMode(
             this.prefs.getString(
                 SecretWallpaperService.PREF_KEY_WEATHER_SOURCE_MODE,
                 SecretWallpaperService.WEATHER_SOURCE_OPEN_METEO
             )
         )
-        samsungWeatherSwitch.setChecked(
+        samsungWeatherSwitch.setChecked(samsungProviderAvailable &&
             SecretWallpaperService.WEATHER_SOURCE_SAMSUNG_DEVICE.equals(
                 configuredWeatherSource
             )
@@ -159,33 +180,25 @@ class SecretWallpaperSetting : Activity() {
             refreshStatus()
         })
 
-        val syncAeroWeatherRefresh: Boolean = this.prefs.getBoolean(
-            SecretWallpaperService.PREF_KEY_SYNC_WITH_AEROWEATHER_REFRESH,
-            SecretWallpaperService.AEROWEATHER_REFRESH_SYNC_DEFAULT
-        )
-        syncAeroWeatherRefreshSwitch.setChecked(syncAeroWeatherRefresh)
-        syncAeroWeatherRefreshSwitch.setOnCheckedChangeListener({ buttonView, isChecked ->
-            val intent: Intent = Intent(SecretWallpaperService.ACTION_SET_AEROWEATHER_REFRESH_SYNC)
-            intent.setPackage(packageName)
-            intent.putExtra(
-                SecretWallpaperService.EXTRA_AEROWEATHER_REFRESH_SYNC_ENABLED,
-                isChecked
-            )
-            sendBroadcast(intent)
-
-            val toastRes: Int
-            if (isChecked && !hasSamsungWeatherPermission()) {
-                requestSamsungWeatherPermissionIfNeeded()
-                toastRes = R.string.settings_weather_permission_requesting
-            } else {
-                toastRes = if (isChecked)
-                    R.string.settings_sync_aeroweather_refresh_on
-                else
-                    R.string.settings_sync_aeroweather_refresh_off
+        DistributionFeatures.bindSettings(
+            this,
+            prefs,
+            samsungProviderAvailable,
+            object : DistributionSettingsHooks {
+                override fun hasSamsungWeatherPermission() = this@SecretWallpaperSetting.hasSamsungWeatherPermission()
+                override fun requestSamsungWeatherPermission() = requestSamsungWeatherPermissionIfNeeded()
+                override fun refreshStatus() = this@SecretWallpaperSetting.refreshStatus()
             }
-            Toast.makeText(this, toastRes, Toast.LENGTH_SHORT).show()
-            refreshStatus()
-        })
+        )
+
+        locationConsentSwitch?.isChecked = LocationWeatherConsent.isTransferAllowed(this)
+        locationConsentSwitch?.setOnCheckedChangeListener { _, enabled ->
+            if (enabled) {
+                if (!LocationWeatherConsent.isTransferAllowed(this)) showLocationDisclosure()
+            } else {
+                revokeLocationWeatherConsent()
+            }
+        }
 
         val showWeatherDebugText: Boolean = this.prefs.getBoolean(
             com.BalancedLight.WindyWeather.SecretWallpaperSetting.Companion.PREF_KEY_SHOW_WEATHER_DEBUG_TEXT,
@@ -755,14 +768,17 @@ class SecretWallpaperSetting : Activity() {
     }
 
     private fun hasSamsungWeatherPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
+        return SamsungWeatherRepository.isSamsungDevice() && ContextCompat.checkSelfPermission(
             this,
             SamsungWeatherRepository.PERMISSION_READ_DANGEROUS_PROVIDER
         ) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun requestSamsungWeatherPermissionIfNeeded() {
-        if (hasSamsungWeatherPermission()) {
+        if (!SamsungWeatherRepository.isSamsungDevice() ||
+            !WeatherDataCoordinator.isSamsungLikelyAvailable(this) ||
+            hasSamsungWeatherPermission()
+        ) {
             return
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -782,10 +798,7 @@ class SecretWallpaperSetting : Activity() {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestPermissions(
-                arrayOf<String?>(
-                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ),
+                arrayOf<String?>(Manifest.permission.ACCESS_COARSE_LOCATION),
                 com.BalancedLight.WindyWeather.SecretWallpaperSetting.Companion.REQUEST_LOCATION_PERMISSION
             )
         }
@@ -793,7 +806,43 @@ class SecretWallpaperSetting : Activity() {
 
     private fun hasLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                || ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun showLocationDisclosure() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.settings_location_disclosure_title)
+            .setMessage(R.string.settings_location_disclosure_message)
+            .setPositiveButton(R.string.settings_location_disclosure_continue) { _, _ ->
+                LocationWeatherConsent.grant(this)
+                if (hasLocationPermission()) {
+                    locationConsentSwitch?.isChecked = true
+                    refreshStatus()
+                } else {
+                    requestLocationPermissionIfNeeded()
+                }
+            }
+            .setNegativeButton(R.string.settings_location_disclosure_cancel) { _, _ ->
+                locationConsentSwitch?.isChecked = false
+                revokeLocationWeatherConsent(showToast = false)
+            }
+            .setNeutralButton(R.string.settings_privacy_policy) { _, _ ->
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL)))
+                locationConsentSwitch?.isChecked = false
+            }
+            .setOnCancelListener {
+                locationConsentSwitch?.isChecked = false
+                revokeLocationWeatherConsent(showToast = false)
+            }
+            .show()
+    }
+
+    private fun revokeLocationWeatherConsent(showToast: Boolean = true) {
+        LocationWeatherConsent.revoke(this)
+        OpenMeteoWeatherRepository.clearLocationDerivedCache(this)
+        if (showToast) {
+            Toast.makeText(this, R.string.settings_location_consent_revoked, Toast.LENGTH_SHORT).show()
+        }
+        refreshStatus()
     }
 
     private fun refreshStatus() {
@@ -801,7 +850,7 @@ class SecretWallpaperSetting : Activity() {
             return
         }
         val locationText: String? = getString(
-            if (hasLocationPermission())
+            if (LocationWeatherConsent.isTransferAllowed(this))
                 R.string.settings_status_location_granted
             else
                 R.string.settings_status_location_missing
@@ -868,14 +917,10 @@ class SecretWallpaperSetting : Activity() {
 
         val debug: StringBuilder = StringBuilder(512)
         debug.append("Source mode: ").append(configuredSourceMode).append('\n')
-        debug.append("AeroWeather sync: ")
-            .append(
-                this.prefs.getBoolean(
-                    SecretWallpaperService.PREF_KEY_SYNC_WITH_AEROWEATHER_REFRESH,
-                    SecretWallpaperService.AEROWEATHER_REFRESH_SYNC_DEFAULT
-                )
-            )
+        debug.append("Location weather consent: ")
+            .append(LocationWeatherConsent.isGranted(this))
             .append('\n')
+        DistributionFeatures.appendDebug(this, prefs, debug)
         debug.append("Code source: ").append(codeSource).append('\n')
         debug.append("Samsung API success: ").append(samsungSuccess).append('\n')
         debug.append("Open-Meteo success: ").append(openMeteoSuccess).append('\n')
@@ -952,6 +997,7 @@ class SecretWallpaperSetting : Activity() {
 
     protected override fun onResume() {
         super.onResume()
+        locationConsentSwitch?.isChecked = LocationWeatherConsent.isTransferAllowed(this)
         refreshStatus()
     }
 
@@ -962,12 +1008,18 @@ class SecretWallpaperSetting : Activity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == com.BalancedLight.WindyWeather.SecretWallpaperSetting.Companion.REQUEST_LOCATION_PERMISSION) {
+            if (hasLocationPermission() && LocationWeatherConsent.isGranted(this)) {
+                locationConsentSwitch?.isChecked = true
+                sendBroadcast(Intent(SecretWallpaperService.ACTION_FORCE_WEATHER_REFRESH).setPackage(packageName))
+            } else {
+                locationConsentSwitch?.isChecked = false
+                revokeLocationWeatherConsent(showToast = false)
+                Toast.makeText(this, R.string.settings_location_permission_denied, Toast.LENGTH_SHORT).show()
+            }
             refreshStatus()
         } else if (requestCode == com.BalancedLight.WindyWeather.SecretWallpaperSetting.Companion.REQUEST_SAMSUNG_WEATHER_PERMISSION) {
             val granted = hasSamsungWeatherPermission()
-            if (granted) {
-                broadcastAeroWeatherSyncPreference()
-            }
+            DistributionFeatures.onSamsungPermissionResult(this, prefs, granted)
             refreshStatus()
             Toast.makeText(
                 this,
@@ -980,22 +1032,13 @@ class SecretWallpaperSetting : Activity() {
         }
     }
 
-    private fun broadcastAeroWeatherSyncPreference() {
-        val enabled: Boolean = this.prefs.getBoolean(
-            SecretWallpaperService.PREF_KEY_SYNC_WITH_AEROWEATHER_REFRESH,
-            SecretWallpaperService.AEROWEATHER_REFRESH_SYNC_DEFAULT
-        )
-        val syncIntent: Intent = Intent(SecretWallpaperService.ACTION_SET_AEROWEATHER_REFRESH_SYNC)
-        syncIntent.setPackage(packageName)
-        syncIntent.putExtra(SecretWallpaperService.EXTRA_AEROWEATHER_REFRESH_SYNC_ENABLED, enabled)
-        sendBroadcast(syncIntent)
-    }
-
     companion object {
         private const val REQUEST_LOCATION_PERMISSION = 1001
         private const val REQUEST_SAMSUNG_WEATHER_PERMISSION = 1002
         private val PREF_NAME = "com.BalancedLight.WindyWeather"
         private val PREF_KEY_SHOW_WEATHER_DEBUG_TEXT = "pref_show_weather_debug_text"
         private val WEATHER_REFRESH_INTERVAL_MINUTES = intArrayOf(10, 15, 30, 60, 180, 360, 0)
+        private const val PRIVACY_POLICY_URL =
+            "https://balancedlight.github.io/Windy-Weather-Revamped/privacy-policy.html"
     }
 }

@@ -8,9 +8,11 @@ import android.os.Looper
 import android.util.Log
 
 import android.content.ContentResolver
-import android.content.Intent
-
-internal class SamsungWeatherSyncBridge(context: Context) {
+internal class SamsungWeatherSyncBridge(
+    context: Context,
+    private val syncEnabled: () -> Boolean,
+    private val onProviderChanged: () -> Unit
+) {
     private val mContext: Context
     private val mHandler: Handler = Handler(Looper.getMainLooper())
     private var mObserver: ContentObserver? = null
@@ -75,7 +77,7 @@ internal class SamsungWeatherSyncBridge(context: Context) {
     }
 
     private fun shouldObserve(): Boolean {
-        if (!SecretWallpaperService.isAeroWeatherRefreshSyncEnabled(this.mContext)) {
+        if (!syncEnabled()) {
             return false
         }
         return SamsungWeatherRepository.isLikelySupported(this.mContext)
@@ -256,9 +258,7 @@ internal class SamsungWeatherSyncBridge(context: Context) {
             this.mContext,
             SecretWallpaperService.ORIGIN_SAMSUNG_OBSERVER
         )
-        val intent: Intent = Intent(SecretWallpaperService.ACTION_SAMSUNG_PROVIDER_CHANGED_INTERNAL)
-        intent.setPackage(this.mContext.packageName)
-        this.mContext.sendBroadcast(intent)
+        onProviderChanged()
         Log.d(
             com.BalancedLight.WindyWeather.SamsungWeatherSyncBridge.Companion.TAG,
             "Provider change dispatched trigger=" + trigger + " uri=" + uri

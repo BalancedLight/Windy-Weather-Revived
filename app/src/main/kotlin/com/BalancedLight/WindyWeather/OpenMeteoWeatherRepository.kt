@@ -4,8 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.location.Address
-import android.location.Geocoder
 import android.location.Location
 import android.location.LocationManager
 import android.os.Handler
@@ -22,9 +20,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.ArrayList
-import java.util.Calendar
 import java.util.Locale
-import java.util.TimeZone
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -57,6 +53,14 @@ internal object OpenMeteoWeatherRepository {
 
     fun refreshAsync(context: Context, callback: Callback?) {
         val appContext: Context = context.getApplicationContext()
+        if (!LocationWeatherConsent.isTransferAllowed(appContext)) {
+            val cached = readFromCache(appContext)
+            if (callback != null) {
+                MAIN_HANDLER.post { callback.onWeatherUpdated(cached) }
+            }
+            Log.d(TAG, "Weather transfer skipped because location consent is not active")
+            return
+        }
         var shouldStartRefresh = false
         kotlin.synchronized(com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.REFRESH_LOCK) {
             if (callback != null) {
@@ -353,21 +357,13 @@ internal object OpenMeteoWeatherRepository {
                         ""
                     ), fallbackSunset
                 )
-            val moonPhase: Int =
-                com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.resolveMoonPhase(
-                    latLon,
-                    fallback
-                )
+            val moonPhase = DistributionFeatures.resolveMoonPhase(
+                latLon.latitude,
+                latLon.longitude,
+                fallback
+            )
 
-            var city: String =
-                com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.resolveCityName(
-                    context,
-                    latLon.latitude,
-                    latLon.longitude
-                )
-            if (city.isEmpty() && fallback != null) {
-                city = fallback.cityName
-            }
+            var city = fallback?.cityName.orEmpty()
             if (city.isEmpty()) {
                 city = "Current location"
             }
@@ -421,7 +417,7 @@ internal object OpenMeteoWeatherRepository {
                 java.lang.Double.doubleToLongBits(com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.DEFAULT_LON)
             )
         )
-        if (!com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.hasLocationPermission(context)) {
+        if (!LocationWeatherConsent.isTransferAllowed(context)) {
             return com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.LatLon(
                 cachedLat,
                 cachedLon
@@ -437,92 +433,55 @@ internal object OpenMeteoWeatherRepository {
                 cachedLon
             )
         }
+        val roundedLatitude = LocationPrivacy.roundCoordinate(location.latitude)
+        val roundedLongitude = LocationPrivacy.roundCoordinate(location.longitude)
         preferences
             .edit()
             .putLong(
                 com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.KEY_LAST_LAT,
-                java.lang.Double.doubleToLongBits(location.getLatitude())
+                java.lang.Double.doubleToLongBits(roundedLatitude)
             )
             .putLong(
                 com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.KEY_LAST_LON,
-                java.lang.Double.doubleToLongBits(location.getLongitude())
+                java.lang.Double.doubleToLongBits(roundedLongitude)
             )
             .apply()
         return com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.LatLon(
-            location.getLatitude(),
-            location.getLongitude()
+            roundedLatitude,
+            roundedLongitude
         )
     }
 
-    private fun hasLocationPermission(context: Context): Boolean {
-        return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                || ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    }
-
     private fun getBestLastKnownLocation(context: Context): Location? {
-        try {
-            val manager: LocationManager? =
-                context.getSystemService(Context.LOCATION_SERVICE) as LocationManager?
-            if (manager == null) {
-                return null
-            }
-            val providers: List<String> = manager.getProviders(true)
-            var best: Location? = null
-            for (provider in providers) {
+        val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager?
+            ?: return null
+        val providers = try {
+            manager.getProviders(true)
+        } catch (_: Exception) {
+            emptyList()
+        }
+        var best: Location? = null
+        for (provider in providers) {
+            val candidate = try {
                 val candidate: Location? = manager.getLastKnownLocation(provider)
-                if (candidate == null) {
-                    continue
-                }
-                if (best == null) {
-                    best = candidate
-                    continue
-                }
-                if (candidate.getTime() > best.getTime()) {
-                    best = candidate
-                }
+                candidate
+            } catch (_: SecurityException) {
+                null
+            } catch (_: IllegalArgumentException) {
+                null
+            } ?: continue
+            if (best == null || candidate.time > best.time) {
+                best = candidate
             }
-            return best
-        } catch (ignored: SecurityException) {
-            return null
         }
-    }
-
-    private fun resolveCityName(context: Context?, latitude: Double, longitude: Double): String {
-        val safeContext = context ?: return ""
-        if (!Geocoder.isPresent()) {
-            return ""
-        }
-        try {
-            val geocoder = Geocoder(safeContext, Locale.getDefault())
-            val addresses: List<Address?>? = geocoder.getFromLocation(latitude, longitude, 1)
-            if (addresses == null || addresses.isEmpty()) {
-                return ""
-            }
-            val address: Address = addresses[0] ?: return ""
-            val locality: String? = address.getLocality()
-            if (locality != null && !locality.isEmpty()) {
-                return locality
-            }
-            val admin: String? = address.getAdminArea()
-            if (admin != null && !admin.isEmpty()) {
-                return admin
-            }
-            val country: String? = address.getCountryName()
-            if (country != null) {
-                return country
-            }
-        } catch (ignored: IOException) {
-        } catch (ignored: IllegalArgumentException) {
-        } catch (ignored: SecurityException) {
-        }
-        return ""
+        return best
     }
 
     @Throws(IOException::class)
     private fun downloadForecast(latitude: Double, longitude: Double): String {
         val endpoint: String? = String.format(
             Locale.US,
-            "https://api.open-meteo.com/v1/forecast?latitude=%.6f&longitude=%.6f&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&current=weather_code,temperature_2m,relative_humidity_2m,wind_speed_10m&forecast_days=1&timezone=auto",
+            "https://api.open-meteo.com/v1/forecast?latitude=%.2f&longitude=%.2f&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&current=weather_code,temperature_2m,relative_humidity_2m,wind_speed_10m&forecast_days=1&timezone=auto",
             latitude,
             longitude
         )
@@ -578,74 +537,8 @@ internal object OpenMeteoWeatherRepository {
         }
     }
 
-    private fun resolveMoonPhase(latLon: LatLon, fallback: WeatherSnapshot?): Int {
-        try {
-            val date: String =
-                com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.todayYYYYMMDD()
-            val tzOffset: String =
-                com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.currentUtcOffsetHours()
-            val moonInfo: MoonInfo =
-                UsnoMoonClient().fetchMoonInfo(date, latLon.latitude, latLon.longitude, tzOffset)
-            val moonPhase: Int = MoonPhaseMapper.toLegacyIndex(moonInfo.phase, moonInfo.fracIllum)
-            Log.d(
-                com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.TAG,
-                ("USNO moon success phase=" + moonInfo.phase
-                        + " fracIllum=" + moonInfo.fracIllum
-                        + " mappedIndex=" + moonPhase
-                        + " tz=" + tzOffset
-                        + " date=" + date)
-            )
-            return moonPhase
-        } catch (e: Exception) {
-            val fallbackPhase: Int =
-                com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.calculateMoonPhase()
-            Log.w(
-                com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.TAG,
-                ("USNO moon fallback to local calculation phase=" + fallbackPhase
-                        + " reason=" + e.message)
-            )
-            return fallbackPhase
-        }
-    }
-
-    private fun todayYYYYMMDD(): String {
-        val calendar: Calendar = Calendar.getInstance()
-        val year: Int = calendar.get(Calendar.YEAR)
-        val month: Int = calendar.get(Calendar.MONTH) + 1
-        val day: Int = calendar.get(Calendar.DAY_OF_MONTH)
-        return String.format(Locale.US, "%04d-%02d-%02d", year, month, day)
-    }
-
-    private fun currentUtcOffsetHours(): String {
-        val zone: TimeZone = TimeZone.getDefault()
-        val offsetHours: Double = zone.getOffset(System.currentTimeMillis()) / 3600000.0
-        if (Math.abs(offsetHours - Math.rint(offsetHours)) < 0.000001) {
-            return String.format(Locale.US, "%.0f", offsetHours)
-        }
-        if (Math.abs((offsetHours * 2.0) - Math.rint(offsetHours * 2.0)) < 0.000001) {
-            return String.format(Locale.US, "%.1f", offsetHours)
-        }
-        return String.format(Locale.US, "%.2f", offsetHours)
-    }
-
-    private fun calculateMoonPhase(): Int {
-        val calendar: Calendar = Calendar.getInstance()
-        var year: Int = calendar.get(Calendar.YEAR)
-        var month: Int = calendar.get(Calendar.MONTH) + 1
-        val day: Int = calendar.get(Calendar.DAY_OF_MONTH)
-        if (month < 3) {
-            year--
-            month += 12
-        }
-        month++
-        var days = (365.25 * year) + (30.6 * month) + day - 694039.09
-        days /= 29.5305882
-        val cycle: Double = days - Math.floor(days)
-        val phase = java.lang.Math.round(cycle * 26.0).toInt()
-        if (phase < 0) {
-            return 0
-        }
-        return Math.min(phase, 26)
+    fun clearLocationDerivedCache(context: Context) {
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit().clear().apply()
     }
 
     internal fun interface Callback {

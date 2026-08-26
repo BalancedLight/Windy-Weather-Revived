@@ -10,6 +10,36 @@
         android:padding="24dp">
 
         <TextView
+            android:id="@+id/text_independence_notice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:text="@string/independence_notice"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/btn_privacy_policy"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_privacy_policy" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="16dp"
+            android:autoLink="web"
+            android:text="@string/open_meteo_attribution"
+            android:textSize="13sp" />
+
+        <Switch
+            android:id="@+id/switch_location_weather_consent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:text="@string/settings_location_weather_consent" />
+
+        <TextView
             android:id="@+id/location_status"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -43,12 +73,7 @@
             android:layout_marginTop="10dp"
             android:text="@string/settings_weather_source_samsung_toggle" />
 
-        <Switch
-            android:id="@+id/switch_sync_aeroweather_refresh"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_sync_aeroweather_refresh_toggle" />
+        <include layout="@layout/distribution_weather_options" />
 
         <TextView
             android:layout_width="match_parent"
