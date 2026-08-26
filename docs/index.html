@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Windy Weather Revived is an independent open-source live wallpaper for modern Android devices.">
+  <title>Windy Weather Revived</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #18324a;
+      background: #eef7ff;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; line-height: 1.6; }
+    main { width: min(960px, calc(100% - 2rem)); margin: 2rem auto 3rem; }
+    header, section, aside {
+      background: #fff;
+      border: 1px solid #d8e7f3;
+      border-radius: 1rem;
+      box-shadow: 0 .5rem 1.5rem rgb(35 88 125 / 10%);
+    }
+    header { overflow: hidden; text-align: center; }
+    header img { display: block; width: 100%; height: auto; }
+    .intro { padding: 1.5rem clamp(1.25rem, 4vw, 3rem) 2rem; }
+    h1 { margin: 0 0 .75rem; font-size: clamp(2rem, 6vw, 3.5rem); line-height: 1.1; color: #154c79; }
+    h2 { margin-top: 0; line-height: 1.2; color: #154c79; }
+    .links { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin: 1.25rem 0; }
+    .links a {
+      display: block;
+      min-height: 100%;
+      padding: 1.25rem;
+      border: 1px solid #c9deed;
+      border-radius: .75rem;
+      color: #0757b5;
+      background: #f8fcff;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .links a:hover, .links a:focus-visible { border-color: #0757b5; background: #edf7ff; }
+    .links span { display: block; margin-top: .35rem; color: #40566a; font-size: .95rem; font-weight: 400; }
+    section, aside { margin-top: 1.25rem; padding: 1.5rem; }
+    aside { background: #fff9e8; border-color: #ead79a; }
+    footer { padding: 1.5rem 0 0; text-align: center; color: #52677a; font-size: .95rem; }
+    footer a { color: #0757b5; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <img
+        src="https://github.com/user-attachments/assets/62bb84cf-efbd-448a-9e92-760711bb211c"
+        alt="Windy Weather Revived banner with two wind turbines against a bright blue sky with clouds and the sun.">
+      <div class="intro">
+        <h1>Windy Weather Revived</h1>
+        <p>Windy Weather Revived is a revival and rebuild of the old Samsung S3 secret live wallpaper service for modern smartphones. It includes Open-Meteo compatibility, experimental Samsung weather integration on eligible devices, and a full Kotlin port while retaining the original experience.</p>
+      </div>
+    </header>
+
+    <section aria-labelledby="links-heading">
+      <h2 id="links-heading">Project links</h2>
+      <div class="links">
+        <a href="https://github.com/BalancedLight/Windy-Weather-Revived/releases">
+          Downloads and releases
+          <span>Get the latest GitHub release.</span>
+        </a>
+        <a href="https://github.com/BalancedLight/Windy-Weather-Revived">
+          Source code
+          <span>View the open-source project on GitHub.</span>
+        </a>
+        <a href="https://github.com/BalancedLight/Windy-Weather-Revived/issues">
+          Support and contact
+          <span>Ask a question, report a problem, or make a privacy request.</span>
+        </a>
+        <a href="privacy-policy.html">
+          Privacy policy
+          <span>Learn how optional approximate-location weather is handled.</span>
+        </a>
+      </div>
+    </section>
+
+    <aside>
+      <strong>Independent project notice:</strong>
+      Windy Weather Revived is an independent, unofficial open-source project. It is not affiliated with, endorsed by, or sponsored by Samsung Electronics. Samsung and related product names are trademarks of their respective owners.
+    </aside>
+
+    <footer>
+      Weather data by <a href="https://open-meteo.com/">Open-Meteo</a> under
+      <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+      Windy Weather Revived is permanently free and ad-free.
+    </footer>
+  </main>
+</body>
+</html>
