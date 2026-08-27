@@ -7,9 +7,9 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.util.Log
 import android.view.View
-import android.widget.Switch
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import com.google.android.material.materialswitch.MaterialSwitch
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
@@ -55,7 +55,12 @@ internal object DistributionFeatures {
         samsungEligible: Boolean,
         hooks: DistributionSettingsHooks
     ) {
-        val syncSwitch: Switch = activity.findViewById(R.id.switch_sync_aeroweather_refresh)
+        val syncSwitch = activity.findViewById<MaterialSwitch>(
+            R.id.switch_sync_aeroweather_refresh
+        ) ?: run {
+            Log.e("GithubDistribution", "AeroWeather sync switch is missing from settings layout")
+            return
+        }
         syncSwitch.visibility = if (samsungEligible) View.VISIBLE else View.GONE
         if (!samsungEligible) {
             prefs.edit().putBoolean(PREF_KEY_SYNC_WITH_AEROWEATHER_REFRESH, false).apply()

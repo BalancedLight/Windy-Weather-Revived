@@ -16,7 +16,8 @@
             "optional": true,
             "linked_to_identity": false,
             "processed_ephemerally": false,
-            "encrypted_in_transit": true
+            "encrypted_in_transit": true,
+            "recipients": ["Open-Meteo", "Android system geocoding service"]
           }
         ]
       }
@@ -31,14 +32,19 @@
             "optional": true,
             "linked_to_identity": false,
             "processed_ephemerally": false,
-            "encrypted_in_transit": true
+            "encrypted_in_transit": true,
+            "recipients": ["Open-Meteo", "Android system geocoding service"]
           }
         ]
       }
     ],
     "not_collected_or_shared": ["Precise location"],
     "remote_deletion_request": false,
-    "deletion_note": "Withdrawing consent clears app-local rounded coordinates and location-derived weather and city cache data."
+    "deletion_note": "Withdrawing consent clears app-local rounded coordinates and location-derived weather and place-name cache data.",
+    "distribution_recipients": {
+      "play": ["Open-Meteo", "Android system geocoding service"],
+      "github": ["Open-Meteo", "Android system geocoding service", "United States Naval Observatory (USNO)"]
+    }
   },
   "declarations": {
     "accounts": false,

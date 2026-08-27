@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="settings_page_margin">16dp</dimen>
+    <dimen name="settings_card_spacing">12dp</dimen>
+    <dimen name="settings_card_padding">20dp</dimen>
+    <dimen name="settings_control_spacing">12dp</dimen>
+    <dimen name="settings_card_corner_radius">24dp</dimen>
+    <dimen name="settings_control_min_height">48dp</dimen>
+    <dimen name="settings_dialog_horizontal_padding">24dp</dimen>
+    <dimen name="settings_dialog_vertical_padding">20dp</dimen>
+</resources>

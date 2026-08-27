@@ -7,6 +7,7 @@ import android.util.Log
 
 internal object WeatherDataCoordinator {
     private const val TAG = "WeatherCoordinator"
+    private const val PREF_NAME = "com.BalancedLight.WindyWeather"
     private val mainHandler = Handler(Looper.getMainLooper())
 
     fun refreshAsync(
@@ -15,6 +16,11 @@ internal object WeatherDataCoordinator {
         callback: OpenMeteoWeatherRepository.Callback?
     ) {
         val appContext = context.applicationContext
+        if (!isLiveWeatherMode(appContext)) {
+            Log.d(TAG, "Refresh skipped in Fixed Scene mode")
+            notify(callback, OpenMeteoWeatherRepository.readFromCache(appContext))
+            return
+        }
         if (sourceMode != SecretWallpaperService.WEATHER_SOURCE_SAMSUNG_DEVICE) {
             if (!LocationWeatherConsent.isTransferAllowed(appContext)) {
                 notify(callback, OpenMeteoWeatherRepository.readFromCache(appContext))
@@ -43,6 +49,11 @@ internal object WeatherDataCoordinator {
 
     fun refreshSamsungOnlyAsync(context: Context, callback: OpenMeteoWeatherRepository.Callback?) {
         val appContext = context.applicationContext
+        if (!isLiveWeatherMode(appContext)) {
+            Log.d(TAG, "Samsung-only refresh skipped in Fixed Scene mode")
+            notify(callback, OpenMeteoWeatherRepository.readFromCache(appContext))
+            return
+        }
         Thread({
             finishSamsungRefresh(
                 appContext,
@@ -64,6 +75,11 @@ internal object WeatherDataCoordinator {
 
     fun hasSamsungWeatherPermission(context: Context?): Boolean =
         SamsungWeatherRepository.hasReadDangerousProviderPermission(context)
+
+    private fun isLiveWeatherMode(context: Context): Boolean =
+        WallpaperModePreferences.isLiveWeather(
+            context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        )
 
     private fun finishSamsungRefresh(
         context: Context,

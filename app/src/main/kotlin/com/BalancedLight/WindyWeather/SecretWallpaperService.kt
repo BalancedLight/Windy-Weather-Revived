@@ -16,7 +16,6 @@ import android.graphics.Point
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.location.Criteria
 import android.location.Location
 import android.location.LocationListener
@@ -136,7 +135,7 @@ class SecretWallpaperService : GLWallpaperService() {
 
     override fun onDestroy() {
         Log.d("WindyWeather", "Wallpaper destroy")
-        unregisterNetworkCallback()
+        stopLiveIntegrations()
         super.onDestroy()
         if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mTimeTickReceiver != null) {
             unregisterReceiver(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mTimeTickReceiver)
@@ -146,8 +145,6 @@ class SecretWallpaperService : GLWallpaperService() {
             unregisterReceiver(this.mReceiver)
             this.mReceiver = null
         }
-        this.mDistributionIntegration?.stop()
-        this.mDistributionIntegration = null
     }
 
     override fun onCreateEngine(): WallpaperService.Engine {
@@ -168,24 +165,18 @@ class SecretWallpaperService : GLWallpaperService() {
             getSharedPreferences("com.BalancedLight.WindyWeather", Context.MODE_PRIVATE)
         this.mEnableLogo = pref.getBoolean(
             com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_SHOW_LEGACY_LOGO,
-            false
+            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.WEATHER_INFORMATION_WATERMARK_DEFAULT
         )
     }
 
     private fun initService() {
-        val filter: IntentFilter = IntentFilter("android.intent.action.TIME_TICK")
-        com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mTimeTickReceiver =
-            TimeTickReceiver()
-        registerReceiverCompat(
-            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mTimeTickReceiver,
-            filter
-        )
         com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mConnManager =
             getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager?
         this.mContext = getApplicationContext()
         com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService = this
         com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref =
             getSharedPreferences("com.BalancedLight.WindyWeather", Context.MODE_PRIVATE)
+        migrateWallpaperModeIfNeeded()
         com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurWeather =
             com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref?.getInt(
                 com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_LAST_WEATHER_CONDITION,
@@ -199,11 +190,13 @@ class SecretWallpaperService : GLWallpaperService() {
         this.mEnableLogo = this.isLegacyLogoVisible
         this.mbIsNight = this.isNightEffective
         this.mLastTwilightSkyPhase = this.currentTwilightSkyPhase
-        registerNetworkCallback()
-        this.mDistributionIntegration = DistributionFeatures.createServiceIntegration(
-            this.mContext
-        ) { origin -> requestWeatherRefresh(true, true, origin) }
-        this.mDistributionIntegration?.start()
+        val filter: IntentFilter = IntentFilter("android.intent.action.TIME_TICK")
+        com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mTimeTickReceiver =
+            TimeTickReceiver()
+        registerReceiverCompat(
+            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mTimeTickReceiver,
+            filter
+        )
         val filter2: IntentFilter = IntentFilter()
         filter2.addAction("android.intent.action.USER_PRESENT")
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_FORCE_WEATHER_REFRESH)
@@ -226,8 +219,17 @@ class SecretWallpaperService : GLWallpaperService() {
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_LEGACY_CLASSIC_WATERMARK)
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_TEXTURE_PACK)
         filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_WEATHER_SOURCE_MODE)
+        filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_WALLPAPER_MODE)
+        filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_FIXED_SCENE)
+        filter2.addAction(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_FIXED_LIGHTING)
         this.mReceiver = WeatherReceiver()
         registerReceiverCompat(this.mReceiver, filter2)
+        if (!this.isLiveWeatherMode) {
+            applyFixedSceneState()
+            setImageSetChange(true)
+            return
+        }
+        startLiveIntegrations()
         updateWeatherInfo()
         val stale: Boolean = WeatherDataCoordinator.isCacheStale(
             this.mContext,
@@ -243,6 +245,45 @@ class SecretWallpaperService : GLWallpaperService() {
             this.mLastWeatherRefreshMs = System.currentTimeMillis()
             Log.d("WindyWeather", "Using fresh weather cache at startup")
         }
+    }
+
+    private fun migrateWallpaperModeIfNeeded() {
+        val prefs = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref ?: return
+        if (prefs.getInt(WallpaperModePreferences.KEY_MIGRATION_VERSION, 0) >= WallpaperModePolicy.MIGRATION_VERSION) {
+            return
+        }
+        val editor = prefs.edit()
+        if (!prefs.contains(WallpaperModePreferences.KEY_MODE)) {
+            val migration = WallpaperModePolicy.migrateLegacy(
+                forcedSceneOrdinal = prefs.getInt(
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_DEBUG_FORCED_SCENE,
+                    -1
+                ),
+                forcedWeatherCode = prefs.getInt(
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_DEBUG_FORCED_WEATHER_CODE,
+                    WeatherSnapshot.UNKNOWN_WEATHER_CODE
+                ),
+                legacyDayNightMode = prefs.getInt(
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_DEBUG_DAY_NIGHT_MODE,
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_AUTO
+                ),
+                lastSceneOrdinal = prefs.getInt(
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_LAST_WEATHER_CONDITION,
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal
+                ),
+                effectiveNight = checkIsDayOrNight()
+            )
+            editor
+                .putString(WallpaperModePreferences.KEY_MODE, migration.mode.preferenceValue)
+                .putString(WallpaperModePreferences.KEY_FIXED_SCENE, migration.preset.id)
+                .putString(WallpaperModePreferences.KEY_FIXED_LIGHTING, migration.lighting.preferenceValue)
+        }
+        editor
+            .putInt(WallpaperModePreferences.KEY_MIGRATION_VERSION, WallpaperModePolicy.MIGRATION_VERSION)
+            .remove(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_DEBUG_FORCED_SCENE)
+            .remove(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_DEBUG_FORCED_WEATHER_CODE)
+            .remove(com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_DEBUG_DAY_NIGHT_MODE)
+            .apply()
     }
 
     private fun registerReceiverCompat(receiver: BroadcastReceiver?, filter: IntentFilter) {
@@ -263,13 +304,13 @@ class SecretWallpaperService : GLWallpaperService() {
     }
 
     private fun registerNetworkCallback() {
-        if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mConnManager == null || this.mNetworkCallback != null) {
+        if (!this.isLiveWeatherMode || com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mConnManager == null || this.mNetworkCallback != null) {
             return
         }
         try {
             this.mNetworkCallback = object : NetworkCallback() {
                 override fun onAvailable(network: Network) {
-                    if (this@SecretWallpaperService.isWeatherRefreshEnabled) {
+                    if (this@SecretWallpaperService.isLiveWeatherMode && this@SecretWallpaperService.isWeatherRefreshEnabled) {
                         this@SecretWallpaperService.mWeatherHandler.sendMessage(
                             this@SecretWallpaperService.mWeatherHandler.obtainMessage(320)
                         )
@@ -302,6 +343,74 @@ class SecretWallpaperService : GLWallpaperService() {
             Log.w("WindyWeather", "Unable to unregister network callback", e)
         } finally {
             this.mNetworkCallback = null
+        }
+    }
+
+    private fun startLiveIntegrations() {
+        if (!this.isLiveWeatherMode) {
+            return
+        }
+        registerNetworkCallback()
+        if (this.mDistributionIntegration == null) {
+            this.mDistributionIntegration = DistributionFeatures.createServiceIntegration(
+                this.mContext
+            ) { origin -> requestWeatherRefresh(true, true, origin) }
+        }
+        this.mDistributionIntegration?.start()
+    }
+
+    private fun stopLiveIntegrations() {
+        unregisterNetworkCallback()
+        this.mDistributionIntegration?.stop()
+        this.mDistributionIntegration = null
+    }
+
+    private fun setWallpaperMode(mode: WallpaperMode) {
+        val prefs = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref ?: return
+        WallpaperModePreferences.setMode(prefs, mode)
+        if (mode == WallpaperMode.FIXED_SCENE) {
+            stopLiveIntegrations()
+            this.mEnableLogo = false
+            com.BalancedLight.WindyWeather.SecretWallpaperService.CSPRenderer.Companion.setEnableLogo(false)
+            applyFixedSceneState()
+            setImageSetChange(true)
+            return
+        }
+        this.mEnableLogo = this.isLegacyLogoVisible
+        com.BalancedLight.WindyWeather.SecretWallpaperService.CSPRenderer.Companion.setEnableLogo(
+            this.mEnableLogo
+        )
+        setCityNameChange(true)
+        updateWeatherInfo()
+        setImageSetChange(true)
+        startLiveIntegrations()
+        this.mLastWeatherRefreshMs = 0L
+        requestWeatherRefresh(
+            true,
+            true,
+            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_MANUAL_USER
+        )
+    }
+
+    private fun setFixedScenePreset(preset: FixedScenePreset, enterFixedMode: Boolean) {
+        val prefs = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref ?: return
+        WallpaperModePreferences.setFixedScene(prefs, preset)
+        if (enterFixedMode) {
+            setWallpaperMode(WallpaperMode.FIXED_SCENE)
+        } else if (!this.isLiveWeatherMode) {
+            applyFixedSceneState()
+            setImageSetChange(true)
+        }
+    }
+
+    private fun setFixedLighting(lighting: FixedLighting, enterFixedMode: Boolean) {
+        val prefs = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref ?: return
+        WallpaperModePreferences.setFixedLighting(prefs, lighting)
+        if (enterFixedMode) {
+            setWallpaperMode(WallpaperMode.FIXED_SCENE)
+        } else if (!this.isLiveWeatherMode) {
+            applyFixedSceneState()
+            setImageSetChange(true)
         }
     }
 
@@ -339,6 +448,11 @@ class SecretWallpaperService : GLWallpaperService() {
         manualSource: Boolean = false,
         origin: String? = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ORIGIN_APP_REFRESH
     ) {
+        if (!this.isLiveWeatherMode) {
+            Log.d("WindyWeather", "Weather refresh skipped in Fixed Scene mode")
+            applyFixedSceneState()
+            return
+        }
         if (!manualSource && !this.isWeatherRefreshEnabled) {
             Log.d(
                 "WindyWeather",
@@ -626,56 +740,15 @@ class SecretWallpaperService : GLWallpaperService() {
     }
 
     fun updateWeatherInfo(): Boolean {
+        if (!this.isLiveWeatherMode) {
+            return applyFixedSceneState()
+        }
         val snapshot: WeatherSnapshot? = WeatherDataCoordinator.readFromCache(this.mContext)
-        val forcedWeatherCode = this.forcedWeatherCodeOverride
         val previousWeather: Int =
             com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurWeather
         com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnPrevWeather =
             previousWeather
         if (snapshot == null || snapshot.weatherCode === WeatherSnapshot.UNKNOWN_WEATHER_CODE) {
-            if (forcedWeatherCode != WeatherSnapshot.UNKNOWN_WEATHER_CODE) {
-                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurrentWeatherCode =
-                    forcedWeatherCode
-                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurWeather =
-                    convertWeatherStringToImageSetNum(forcedWeatherCode).ordinal
-                applyForcedSceneOverride()
-                if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref != null) {
-                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.edit()
-                        .putInt(
-                            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_LAST_WEATHER_CONDITION,
-                            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurWeather
-                        )
-                        .putInt(
-                            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_LAST_PREV_WEATHER_CONDITION,
-                            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnPrevWeather
-                        )
-                        .apply()
-                }
-                return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.isSupportedSceneOrdinal(
-                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurWeather
-                )
-            }
-            val forcedScene = this.forcedSceneOrdinal
-            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.isSupportedSceneOrdinal(
-                    forcedScene
-                )
-            ) {
-                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurWeather =
-                    forcedScene
-                if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref != null) {
-                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.edit()
-                        .putInt(
-                            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_LAST_WEATHER_CONDITION,
-                            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurWeather
-                        )
-                        .putInt(
-                            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_LAST_PREV_WEATHER_CONDITION,
-                            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnPrevWeather
-                        )
-                        .apply()
-                }
-                return true
-            }
             return false
         }
 
@@ -689,12 +762,10 @@ class SecretWallpaperService : GLWallpaperService() {
         val previousCity: String? =
             com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mCityName
         val sourceWeatherCode: Int = snapshot.weatherCode
-        val effectiveWeatherCode =
-            if (forcedWeatherCode != WeatherSnapshot.UNKNOWN_WEATHER_CODE) forcedWeatherCode else sourceWeatherCode
         com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurrentWeatherCode =
-            effectiveWeatherCode
+            sourceWeatherCode
         com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurWeather =
-            convertWeatherStringToImageSetNum(effectiveWeatherCode).ordinal
+            convertWeatherStringToImageSetNum(sourceWeatherCode).ordinal
         if (!com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.isSupportedSceneOrdinal(
                 com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurWeather
             )
@@ -718,10 +789,9 @@ class SecretWallpaperService : GLWallpaperService() {
             snapshot.moonPhase
         com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mCityName =
             if (snapshot.cityName == null) "" else snapshot.cityName
-        applyForcedSceneOverride()
         Log.d(
             "WindyWeather",
-            "Applying weatherCode source=" + sourceWeatherCode + " effective=" + effectiveWeatherCode + " forcedOverride=" + forcedWeatherCode + " tempC=" + this.mnCurrentTemp + " windKmh=" + this.currentWindSpeedKmh + " sourceLabel=" + snapshot.codeSource + " updatedMs=" + snapshot.lastUpdatedMs
+            "Applying live weatherCode=" + sourceWeatherCode + " tempC=" + this.mnCurrentTemp + " windKmh=" + this.currentWindSpeedKmh + " sourceLabel=" + snapshot.codeSource + " updatedMs=" + snapshot.lastUpdatedMs
         )
 
         val editor: SharedPreferences.Editor =
@@ -898,6 +968,36 @@ class SecretWallpaperService : GLWallpaperService() {
                 this@SecretWallpaperService.mLastTwilightSkyPhase =
                     this@SecretWallpaperService.currentTwilightSkyPhase
                 this@SecretWallpaperService.setImageSetChange(true)
+            } else if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_WALLPAPER_MODE.equals(
+                    action
+                )
+            ) {
+                val value = safeIntent.getStringExtra(
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.EXTRA_WALLPAPER_MODE
+                ) ?: return
+                this@SecretWallpaperService.setWallpaperMode(WallpaperMode.fromPreference(value))
+            } else if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_FIXED_SCENE.equals(
+                    action
+                )
+            ) {
+                val value = safeIntent.getStringExtra(
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.EXTRA_FIXED_SCENE
+                ) ?: return
+                this@SecretWallpaperService.setFixedScenePreset(
+                    FixedScenePresets.fromId(value),
+                    enterFixedMode = false
+                )
+            } else if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_SET_FIXED_LIGHTING.equals(
+                    action
+                )
+            ) {
+                val value = safeIntent.getStringExtra(
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.EXTRA_FIXED_LIGHTING
+                ) ?: return
+                this@SecretWallpaperService.setFixedLighting(
+                    FixedLighting.fromPreference(value),
+                    enterFixedMode = false
+                )
             } else if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_DEBUG_SET_FORCED_SCENE.equals(
                     action
                 )
@@ -906,9 +1006,13 @@ class SecretWallpaperService : GLWallpaperService() {
                     com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.EXTRA_DEBUG_FORCED_SCENE,
                     -1
                 )
-                this@SecretWallpaperService.forcedSceneOrdinal = forcedScene
-                if (this@SecretWallpaperService.updateWeatherInfo()) {
-                    this@SecretWallpaperService.setImageSetChange(true)
+                if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.isSupportedSceneOrdinal(forcedScene)) {
+                    this@SecretWallpaperService.setFixedScenePreset(
+                        FixedScenePresets.fromLegacy(forcedScene, WeatherSnapshot.UNKNOWN_WEATHER_CODE),
+                        enterFixedMode = true
+                    )
+                } else {
+                    this@SecretWallpaperService.setWallpaperMode(WallpaperMode.LIVE_WEATHER)
                 }
             } else if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_DEBUG_SET_FORCED_WEATHER_CODE.equals(
                     action
@@ -918,9 +1022,16 @@ class SecretWallpaperService : GLWallpaperService() {
                     com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.EXTRA_DEBUG_FORCED_WEATHER_CODE,
                     WeatherSnapshot.UNKNOWN_WEATHER_CODE
                 )
-                this@SecretWallpaperService.forcedWeatherCodeOverride = forcedWeatherCode
-                if (this@SecretWallpaperService.updateWeatherInfo()) {
-                    this@SecretWallpaperService.setImageSetChange(true)
+                if (forcedWeatherCode >= 0) {
+                    this@SecretWallpaperService.setFixedScenePreset(
+                        FixedScenePresets.fromLegacy(
+                            this@SecretWallpaperService.convertWeatherStringToImageSetNum(forcedWeatherCode).ordinal,
+                            forcedWeatherCode
+                        ),
+                        enterFixedMode = true
+                    )
+                } else {
+                    this@SecretWallpaperService.setWallpaperMode(WallpaperMode.LIVE_WEATHER)
                 }
             } else if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_DEBUG_SET_OLD_NIGHT_EFFECT.equals(
                     action
@@ -963,12 +1074,25 @@ class SecretWallpaperService : GLWallpaperService() {
                     com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.EXTRA_DAY_NIGHT_MODE,
                     com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_AUTO
                 )
-                this@SecretWallpaperService.dayNightMode = mode
-                this@SecretWallpaperService.mbIsNight =
-                    this@SecretWallpaperService.isNightEffective
-                this@SecretWallpaperService.mLastTwilightSkyPhase =
-                    this@SecretWallpaperService.currentTwilightSkyPhase
-                this@SecretWallpaperService.setImageSetChange(true)
+                if (mode == com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_AUTO) {
+                    this@SecretWallpaperService.setWallpaperMode(WallpaperMode.LIVE_WEATHER)
+                } else {
+                    this@SecretWallpaperService.setFixedScenePreset(
+                        FixedScenePresets.fromLegacy(
+                            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurWeather,
+                            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurrentWeatherCode
+                        ),
+                        enterFixedMode = false
+                    )
+                    this@SecretWallpaperService.setFixedLighting(
+                        if (mode == com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_FORCE_NIGHT) {
+                            FixedLighting.NIGHT
+                        } else {
+                            FixedLighting.DAY
+                        },
+                        enterFixedMode = true
+                    )
+                }
             } else if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.ACTION_DEBUG_SET_HIDE_THUNDER_RAINDROPS_LEGACY.equals(
                     action
                 )
@@ -1083,7 +1207,8 @@ class SecretWallpaperService : GLWallpaperService() {
     }
 
     private val isWeatherRefreshEnabled: Boolean
-        get() = this.weatherRefreshIntervalMinutes > com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.WEATHER_REFRESH_OFF_MINUTES
+        get() = this.isLiveWeatherMode &&
+            this.weatherRefreshIntervalMinutes > com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.WEATHER_REFRESH_OFF_MINUTES
 
     private var weatherRefreshIntervalMinutes: Int
         get() {
@@ -1270,47 +1395,23 @@ class SecretWallpaperService : GLWallpaperService() {
             ).apply()
         }
 
-    private var forcedSceneOrdinal: Int
-        get() {
-            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
-                return -1
-            }
-            return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.getInt(
-                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_DEBUG_FORCED_SCENE,
-                -1
-            )
-        }
-        private set(ordinal) {
-            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
-                return
-            }
-            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.edit().putInt(
-                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_DEBUG_FORCED_SCENE,
-                ordinal
-            ).apply()
-        }
+    private val wallpaperMode: WallpaperMode
+        get() = WallpaperModePreferences.mode(
+            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref
+        )
 
-    private var forcedWeatherCodeOverride: Int
-        get() {
-            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
-                return WeatherSnapshot.UNKNOWN_WEATHER_CODE
-            }
-            return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.getInt(
-                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_DEBUG_FORCED_WEATHER_CODE,
-                WeatherSnapshot.UNKNOWN_WEATHER_CODE
-            )
-        }
-        private set(weatherCode) {
-            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
-                return
-            }
-            val normalizedCode =
-                if (weatherCode >= 0) weatherCode else WeatherSnapshot.UNKNOWN_WEATHER_CODE
-            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.edit().putInt(
-                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_DEBUG_FORCED_WEATHER_CODE,
-                normalizedCode
-            ).apply()
-        }
+    private val isLiveWeatherMode: Boolean
+        get() = this.wallpaperMode == WallpaperMode.LIVE_WEATHER
+
+    private val fixedScenePreset: FixedScenePreset
+        get() = WallpaperModePreferences.preset(
+            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref
+        )
+
+    private val fixedLighting: FixedLighting
+        get() = WallpaperModePreferences.lighting(
+            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref
+        )
 
     private var isLegacyBelowFreezingFrostEnabled: Boolean
         get() {
@@ -1374,6 +1475,9 @@ class SecretWallpaperService : GLWallpaperService() {
 
     private var isLegacyClassicWatermarkEnabled: Boolean
         get() {
+            if (!this.isLiveWeatherMode) {
+                return false
+            }
             if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
                 return false
             }
@@ -1399,20 +1503,44 @@ class SecretWallpaperService : GLWallpaperService() {
         return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnPrevWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D7_FLURRIES_SNOW.ordinal
     }
 
-    private fun applyForcedSceneOverride() {
-        val forcedScene = this.forcedSceneOrdinal
-        if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.isSupportedSceneOrdinal(
-                forcedScene
-            )
-        ) {
-            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurWeather =
-                forcedScene
-            Log.d("WindyWeather", "Forced scene override applied: " + forcedScene)
+    private fun applyFixedSceneState(): Boolean {
+        val preset = this.fixedScenePreset
+        com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnPrevWeather = preset.sceneOrdinal
+        com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurWeather = preset.sceneOrdinal
+        com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurrentWeatherCode = preset.weatherCode
+        this.mnCurrentTemp = preset.currentTempC
+        this.mnHighTemp = preset.currentTempC
+        this.mnLowTemp = preset.currentTempC
+        this.mnHumidityPercent = preset.humidityPercent
+        this.currentWindSpeedKmh = preset.windSpeedKmh
+        this.isBelowFreezingNow = preset.currentTempC <= 0
+        this.isHighHumidityNow = preset.humidityPercent >= 90
+        this.mnSunriseTime = 600
+        this.mnSunsetTime = 1800
+        com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mnCurMoonPhase =
+            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.FIXED_SCENE_FULL_MOON_PHASE
+        com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mCityName = ""
+        this.mbIsNight = this.fixedLighting == FixedLighting.NIGHT
+        this.mLastTwilightSkyPhase = if (this.mbIsNight) {
+            TwilightTimeline.SkyPhase.NIGHT
+        } else {
+            TwilightTimeline.SkyPhase.DAY
         }
+        setCityNameChange(true)
+        Log.d(
+            "WindyWeather",
+            "Applied fixed scene preset=${preset.id} lighting=${this.fixedLighting.preferenceValue}"
+        )
+        return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.isSupportedSceneOrdinal(
+            preset.sceneOrdinal
+        )
     }
 
     private var isCityNameVisible: Boolean
         get() {
+            if (!this.isLiveWeatherMode) {
+                return false
+            }
             if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
                 return true
             }
@@ -1453,12 +1581,15 @@ class SecretWallpaperService : GLWallpaperService() {
 
     private var isLegacyLogoVisible: Boolean
         get() {
-            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
+            if (!this.isLiveWeatherMode) {
                 return false
+            }
+            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
+                return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.WEATHER_INFORMATION_WATERMARK_DEFAULT
             }
             return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.getBoolean(
                 com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_SHOW_LEGACY_LOGO,
-                false
+                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.WEATHER_INFORMATION_WATERMARK_DEFAULT
             )
         }
         private set(visible) {
@@ -1495,41 +1626,19 @@ class SecretWallpaperService : GLWallpaperService() {
             ).apply()
         }
 
-    private var dayNightMode: Int
-        get() {
-            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
-                return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_AUTO
-            }
-            return com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.getInt(
-                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_DEBUG_DAY_NIGHT_MODE,
-                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_AUTO
-            )
-        }
-        private set(mode) {
-            if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref == null) {
-                return
-            }
-            val normalizedMode: Int
-            if (mode < com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_AUTO || mode > com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_FORCE_NIGHT) {
-                normalizedMode =
-                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_AUTO
-            } else {
-                normalizedMode = mode
-            }
-            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mPref!!.edit().putInt(
-                com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.PREF_KEY_DEBUG_DAY_NIGHT_MODE,
-                normalizedMode
-            ).apply()
+    private val dayNightMode: Int
+        get() = if (this.isLiveWeatherMode) {
+            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_AUTO
+        } else if (this.fixedLighting == FixedLighting.NIGHT) {
+            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_FORCE_NIGHT
+        } else {
+            com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_FORCE_DAY
         }
 
     private val isNightEffective: Boolean
         get() {
-            val mode = this.dayNightMode
-            if (mode == com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_FORCE_DAY) {
-                return false
-            }
-            if (mode == com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.DAY_NIGHT_MODE_FORCE_NIGHT) {
-                return true
+            if (!this.isLiveWeatherMode) {
+                return this.fixedLighting == FixedLighting.NIGHT
             }
             return checkIsDayOrNight()
         }
@@ -5416,6 +5525,12 @@ class SecretWallpaperService : GLWallpaperService() {
             "com.BalancedLight.WindyWeather.action.SET_TEXTURE_PACK"
         val ACTION_SET_WEATHER_SOURCE_MODE: String =
             "com.BalancedLight.WindyWeather.action.SET_WEATHER_SOURCE_MODE"
+        val ACTION_SET_WALLPAPER_MODE: String =
+            "com.BalancedLight.WindyWeather.action.SET_WALLPAPER_MODE"
+        val ACTION_SET_FIXED_SCENE: String =
+            "com.BalancedLight.WindyWeather.action.SET_FIXED_SCENE"
+        val ACTION_SET_FIXED_LIGHTING: String =
+            "com.BalancedLight.WindyWeather.action.SET_FIXED_LIGHTING"
         val EXTRA_WEATHER_REFRESH_INTERVAL_MINUTES: String =
             "extra_weather_refresh_interval_minutes"
         val EXTRA_TARGET_FPS: String = "extra_target_fps"
@@ -5440,6 +5555,9 @@ class SecretWallpaperService : GLWallpaperService() {
             "extra_legacy_classic_watermark_enabled"
         val EXTRA_TEXTURE_PACK: String = "extra_texture_pack"
         val EXTRA_WEATHER_SOURCE_MODE: String = "extra_weather_source_mode"
+        val EXTRA_WALLPAPER_MODE: String = "extra_wallpaper_mode"
+        val EXTRA_FIXED_SCENE: String = "extra_fixed_scene"
+        val EXTRA_FIXED_LIGHTING: String = "extra_fixed_lighting"
         val PREF_KEY_WEATHER_REFRESH_INTERVAL_MINUTES: String =
             "pref_weather_refresh_interval_minutes"
         val PREF_KEY_TARGET_FPS: String = "pref_target_fps"
@@ -5486,9 +5604,11 @@ class SecretWallpaperService : GLWallpaperService() {
         const val TARGET_FPS_MAX: Int = 60
         const val TARGET_FPS_DEFAULT: Int = 30
         const val TARGET_FPS_POWER_SAVE_DEFAULT: Int = 15
-        const val FRAME_RATE_DEPENDENT_ANIMATION_DEFAULT: Boolean = true
+        const val FRAME_RATE_DEPENDENT_ANIMATION_DEFAULT: Boolean = false
         const val GROUND_PARALLAX_DEFAULT: Boolean = true
         const val SUNRISE_SUNSET_SKIES_DEFAULT: Boolean = true
+        const val WEATHER_INFORMATION_WATERMARK_DEFAULT: Boolean = true
+        const val FIXED_SCENE_FULL_MOON_PHASE: Int = 13
 
         /**
          * Weather-specific strength and foreground treatment for the shared daily sky variation.

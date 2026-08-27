@@ -2,7 +2,6 @@ package com.BalancedLight.WindyWeather
 
 import android.Manifest
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -14,15 +13,23 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.AdapterView.OnItemSelectedListener
 import android.widget.ArrayAdapter
-import android.widget.Button
 import android.widget.RadioGroup
 import android.widget.SeekBar
 import android.widget.SeekBar.OnSeekBarChangeListener
 import android.widget.Spinner
-import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.widget.NestedScrollView
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.tabs.TabLayout
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -30,68 +37,74 @@ import java.util.Locale
 class SecretWallpaperSetting : Activity() {
     private var locationStatus: TextView? = null
     private var weatherDebugText: TextView? = null
-    private var locationConsentSwitch: Switch? = null
+    private var locationConsentSwitch: MaterialSwitch? = null
     private lateinit var prefs: SharedPreferences
+    private lateinit var permissionButton: MaterialButton
+    private lateinit var refreshButton: MaterialButton
+    private lateinit var samsungWeatherSwitch: MaterialSwitch
+    private var samsungProviderAvailable = false
+    private var updatingLocationConsentSwitch = false
+    private var reconsentPromptShown = false
 
     protected override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_wallpaper_settings)
         this.prefs = getSharedPreferences(
             com.BalancedLight.WindyWeather.SecretWallpaperSetting.Companion.PREF_NAME,
             MODE_PRIVATE
         )
 
+        val settingsRoot: View = findViewById(R.id.settings_root)
+        val settingsToolbar: MaterialToolbar = findViewById(R.id.settings_toolbar)
+        val settingsScrollView: NestedScrollView = findViewById(R.id.settings_scroll_view)
+        applyEdgeToEdgeInsets(settingsRoot, settingsToolbar, settingsScrollView)
+
         this.locationStatus = findViewById(R.id.location_status)
-        val permissionButton: Button = findViewById(R.id.btn_permission)
-        val locationButton: Button = findViewById(R.id.btn_location_settings)
-        val refreshButton: Button = findViewById(R.id.btn_refresh)
-        val closeButton: Button = findViewById(R.id.btn_close)
+        this.permissionButton = findViewById(R.id.btn_permission)
+        val locationButton: MaterialButton = findViewById(R.id.btn_location_settings)
+        this.refreshButton = findViewById(R.id.btn_refresh)
+        val closeButton: MaterialButton = findViewById(R.id.btn_close)
         val weatherRefreshSpinner: Spinner = findViewById(R.id.spinner_weather_refresh_interval)
         val targetFpsValueText: TextView = findViewById(R.id.text_target_fps_value)
         val targetFpsSeekBar: SeekBar = findViewById(R.id.seek_target_fps)
         val powerSaveFpsValueText: TextView = findViewById(R.id.text_power_save_fps_value)
         val powerSaveFpsSeekBar: SeekBar = findViewById(R.id.seek_power_save_fps)
-        val frameRateDependentAnimationSwitch: Switch =
+        val frameRateDependentAnimationSwitch: MaterialSwitch =
             findViewById(R.id.switch_frame_rate_dependent_animation)
-        val oldNightEffectSwitch: Switch = findViewById(R.id.switch_old_night_effect)
-        val hideThunderRaindropsLegacySwitch: Switch =
+        val oldNightEffectSwitch: MaterialSwitch = findViewById(R.id.switch_old_night_effect)
+        val hideThunderRaindropsLegacySwitch: MaterialSwitch =
             findViewById(R.id.switch_hide_thunder_raindrops_legacy)
-        val legacyBelowFreezingFrostSwitch: Switch =
+        val legacyBelowFreezingFrostSwitch: MaterialSwitch =
             findViewById(R.id.switch_legacy_below_freezing_frost)
-        val legacyHumidityWaterdropSwitch: Switch =
+        val legacyHumidityWaterdropSwitch: MaterialSwitch =
             findViewById(R.id.switch_legacy_humidity_waterdrop)
-        val legacyDelaySnowGroundSwitch: Switch = findViewById(R.id.switch_legacy_delay_snow_ground)
-        val legacyClassicWatermarkSwitch: Switch =
+        val legacyDelaySnowGroundSwitch: MaterialSwitch = findViewById(R.id.switch_legacy_delay_snow_ground)
+        val legacyClassicWatermarkSwitch: MaterialSwitch =
             findViewById(R.id.switch_legacy_classic_watermark)
-        val showCitySwitch: Switch = findViewById(R.id.switch_show_city_name)
-        val showLogoSwitch: Switch = findViewById(R.id.switch_show_legacy_logo)
-        val groundParallaxSwitch: Switch = findViewById(R.id.switch_ground_parallax)
-        val sunriseSunsetSkiesSwitch: Switch = findViewById(R.id.switch_sunrise_sunset_skies)
-        val samsungWeatherSwitch: Switch = findViewById(R.id.switch_use_samsung_weather)
+        val showCitySwitch: MaterialSwitch = findViewById(R.id.switch_show_city_name)
+        val showLogoSwitch: MaterialSwitch = findViewById(R.id.switch_show_legacy_logo)
+        val groundParallaxSwitch: MaterialSwitch = findViewById(R.id.switch_ground_parallax)
+        val sunriseSunsetSkiesSwitch: MaterialSwitch = findViewById(R.id.switch_sunrise_sunset_skies)
+        this.samsungWeatherSwitch = findViewById(R.id.switch_use_samsung_weather)
         this.locationConsentSwitch = findViewById(R.id.switch_location_weather_consent)
-        val showWeatherDebugTextSwitch: Switch = findViewById(R.id.switch_show_weather_debug_text)
+        val showWeatherDebugTextSwitch: MaterialSwitch = findViewById(R.id.switch_show_weather_debug_text)
         val texturePackGroup: RadioGroup = findViewById(R.id.radio_texture_pack)
         val dayNightGroup: RadioGroup = findViewById(R.id.radio_day_night_mode)
-        val autoSceneButton: Button = findViewById(R.id.btn_force_auto)
-        val clearSceneButton: Button = findViewById(R.id.btn_force_clear)
-        val cloudySceneButton: Button = findViewById(R.id.btn_force_cloudy)
-        val mostlyClearSceneButton: Button = findViewById(R.id.btn_force_mostly_clear)
-        val drearySceneButton: Button = findViewById(R.id.btn_force_dreary)
-        val fogSceneButton: Button = findViewById(R.id.btn_force_fog)
-        val freezingFogSceneButton: Button = findViewById(R.id.btn_force_freezing_fog)
-        val rainSceneButton: Button = findViewById(R.id.btn_force_rain)
-        val thunderSceneButton: Button = findViewById(R.id.btn_force_thunder)
-        val snowSceneButton: Button = findViewById(R.id.btn_force_snow)
-        val sleetSceneButton: Button = findViewById(R.id.btn_force_sleet)
+        val fixedSceneDropdown: MaterialAutoCompleteTextView = findViewById(R.id.dropdown_fixed_scene)
+        val applyFixedSceneButton: MaterialButton = findViewById(R.id.btn_apply_fixed_scene)
+        val settingsTabs: TabLayout = findViewById(R.id.settings_tabs)
+        val liveWeatherWorkspace: View = findViewById(R.id.layout_live_weather_workspace)
+        val fixedSceneWorkspace: View = findViewById(R.id.layout_fixed_scene_workspace)
         this.weatherDebugText = findViewById(R.id.text_weather_debug_info)
 
-        permissionButton.setOnClickListener({ showLocationDisclosure() })
-        findViewById<Button>(R.id.btn_privacy_policy).setOnClickListener {
+        this.permissionButton.setOnClickListener({ showLocationDisclosure() })
+        findViewById<MaterialButton>(R.id.btn_privacy_policy).setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL)))
         }
         locationButton.setOnClickListener({ v -> startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) })
-        refreshButton.setOnClickListener({ v ->
-            val selectedSourceMode: String? = if (samsungWeatherSwitch.isChecked)
+        this.refreshButton.setOnClickListener({ v ->
+            val selectedSourceMode: String? = if (this.samsungWeatherSwitch.isChecked)
                 SecretWallpaperService.WEATHER_SOURCE_SAMSUNG_DEVICE
             else
                 SecretWallpaperService.WEATHER_SOURCE_OPEN_METEO
@@ -107,10 +120,18 @@ class SecretWallpaperSetting : Activity() {
                 this,
                 selectedSourceMode,
                 { snapshot ->
-                    if (snapshot == null || snapshot.weatherCode === WeatherSnapshot.UNKNOWN_WEATHER_CODE) {
+                    if (snapshot == null || snapshot.weatherCode == WeatherSnapshot.UNKNOWN_WEATHER_CODE) {
+                        val failureMessage = if (
+                            selectedSourceMode == SecretWallpaperService.WEATHER_SOURCE_OPEN_METEO &&
+                            !OpenMeteoWeatherRepository.hasUsableCoordinates(this)
+                        ) {
+                            R.string.settings_weather_waiting_for_location
+                        } else {
+                            R.string.settings_weather_refresh_failed
+                        }
                         Toast.makeText(
                             this,
-                            R.string.settings_weather_refresh_failed,
+                            failureMessage,
                             Toast.LENGTH_SHORT
                         ).show()
                     } else {
@@ -119,7 +140,7 @@ class SecretWallpaperSetting : Activity() {
                         refreshIntent.setPackage(packageName)
                         sendBroadcast(refreshIntent)
                         val toastRes: Int =
-                            if (samsungWeatherSwitch.isChecked && isOpenMeteoFallbackSource(
+                            if (this.samsungWeatherSwitch.isChecked && isOpenMeteoFallbackSource(
                                     snapshot
                                 )
                             )
@@ -135,10 +156,10 @@ class SecretWallpaperSetting : Activity() {
         closeButton.setOnClickListener({ v -> finish() })
 
         val samsungDevice = SamsungWeatherRepository.isSamsungDevice()
-        val samsungProviderAvailable = samsungDevice && WeatherDataCoordinator.isSamsungLikelyAvailable(this)
-        samsungWeatherSwitch.visibility = if (samsungDevice) View.VISIBLE else View.GONE
-        samsungWeatherSwitch.isEnabled = samsungProviderAvailable
-        if (!samsungProviderAvailable) {
+        this.samsungProviderAvailable = samsungDevice && WeatherDataCoordinator.isSamsungLikelyAvailable(this)
+        this.samsungWeatherSwitch.visibility = if (samsungDevice) View.VISIBLE else View.GONE
+        this.samsungWeatherSwitch.isEnabled = this.samsungProviderAvailable
+        if (!this.samsungProviderAvailable) {
             prefs.edit().putString(
                 SecretWallpaperService.PREF_KEY_WEATHER_SOURCE_MODE,
                 SecretWallpaperService.WEATHER_SOURCE_OPEN_METEO
@@ -150,12 +171,12 @@ class SecretWallpaperSetting : Activity() {
                 SecretWallpaperService.WEATHER_SOURCE_OPEN_METEO
             )
         )
-        samsungWeatherSwitch.setChecked(samsungProviderAvailable &&
+        this.samsungWeatherSwitch.setChecked(this.samsungProviderAvailable &&
             SecretWallpaperService.WEATHER_SOURCE_SAMSUNG_DEVICE.equals(
                 configuredWeatherSource
             )
         )
-        samsungWeatherSwitch.setOnCheckedChangeListener({ buttonView, isChecked ->
+        this.samsungWeatherSwitch.setOnCheckedChangeListener({ buttonView, isChecked ->
             val sourceMode: String? = if (isChecked)
                 SecretWallpaperService.WEATHER_SOURCE_SAMSUNG_DEVICE
             else
@@ -183,7 +204,7 @@ class SecretWallpaperSetting : Activity() {
         DistributionFeatures.bindSettings(
             this,
             prefs,
-            samsungProviderAvailable,
+            this.samsungProviderAvailable,
             object : DistributionSettingsHooks {
                 override fun hasSamsungWeatherPermission() = this@SecretWallpaperSetting.hasSamsungWeatherPermission()
                 override fun requestSamsungWeatherPermission() = requestSamsungWeatherPermissionIfNeeded()
@@ -191,14 +212,93 @@ class SecretWallpaperSetting : Activity() {
             }
         )
 
-        locationConsentSwitch?.isChecked = LocationWeatherConsent.isTransferAllowed(this)
+        setLocationConsentChecked(LocationWeatherConsent.isTransferAllowed(this))
         locationConsentSwitch?.setOnCheckedChangeListener { _, enabled ->
+            if (updatingLocationConsentSwitch) return@setOnCheckedChangeListener
             if (enabled) {
                 if (!LocationWeatherConsent.isTransferAllowed(this)) showLocationDisclosure()
             } else {
                 revokeLocationWeatherConsent()
             }
         }
+
+        val fixedSceneAdapter = ArrayAdapter.createFromResource(
+            this,
+            R.array.settings_fixed_scene_entries,
+            android.R.layout.simple_dropdown_item_1line
+        )
+        fixedSceneDropdown.setAdapter(fixedSceneAdapter)
+        var selectedFixedPreset = WallpaperModePreferences.preset(this.prefs)
+        var selectedFixedLighting = WallpaperModePreferences.lighting(this.prefs)
+        var bindingFixedControls = false
+
+        fun bindFixedControlsFromPreferences() {
+            bindingFixedControls = true
+            selectedFixedPreset = WallpaperModePreferences.preset(this.prefs)
+            selectedFixedLighting = WallpaperModePreferences.lighting(this.prefs)
+            val presetIndex = FixedScenePresets.all.indexOfFirst { it.id == selectedFixedPreset.id }
+                .coerceAtLeast(0)
+            fixedSceneDropdown.setText(fixedSceneAdapter.getItem(presetIndex), false)
+            dayNightGroup.check(
+                if (selectedFixedLighting == FixedLighting.NIGHT) {
+                    R.id.rb_day_night_night
+                } else {
+                    R.id.rb_day_night_day
+                }
+            )
+            bindingFixedControls = false
+        }
+
+        fixedSceneDropdown.setOnItemClickListener { _, _, position, _ ->
+            FixedScenePresets.all.getOrNull(position)?.let { selectedFixedPreset = it }
+        }
+        dayNightGroup.setOnCheckedChangeListener { _, checkedId ->
+            if (bindingFixedControls) return@setOnCheckedChangeListener
+            selectedFixedLighting = if (checkedId == R.id.rb_day_night_night) {
+                FixedLighting.NIGHT
+            } else {
+                FixedLighting.DAY
+            }
+        }
+        applyFixedSceneButton.setOnClickListener {
+            WallpaperModePreferences.setFixedScene(this.prefs, selectedFixedPreset)
+            WallpaperModePreferences.setFixedLighting(this.prefs, selectedFixedLighting)
+            broadcastFixedScene(selectedFixedPreset)
+            broadcastFixedLighting(selectedFixedLighting)
+        }
+
+        fun showWorkspace(mode: WallpaperMode) {
+            val live = mode == WallpaperMode.LIVE_WEATHER
+            liveWeatherWorkspace.visibility = if (live) View.VISIBLE else View.GONE
+            fixedSceneWorkspace.visibility = if (live) View.GONE else View.VISIBLE
+            refreshStatus()
+        }
+
+        val initialMode = WallpaperModePreferences.mode(this.prefs)
+        if (initialMode == WallpaperMode.FIXED_SCENE) {
+            seedFixedModePreferencesIfNeeded()
+        }
+        bindFixedControlsFromPreferences()
+        settingsTabs.selectTab(
+            settingsTabs.getTabAt(if (initialMode == WallpaperMode.LIVE_WEATHER) 0 else 1)
+        )
+        showWorkspace(initialMode)
+        settingsTabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                val mode = if (tab.position == 1) WallpaperMode.FIXED_SCENE else WallpaperMode.LIVE_WEATHER
+                if (mode == WallpaperMode.FIXED_SCENE) {
+                    seedFixedModePreferencesIfNeeded()
+                    bindFixedControlsFromPreferences()
+                }
+                WallpaperModePreferences.setMode(this@SecretWallpaperSetting.prefs, mode)
+                broadcastWallpaperMode(mode)
+                showWorkspace(mode)
+            }
+
+            override fun onTabUnselected(tab: TabLayout.Tab) = Unit
+
+            override fun onTabReselected(tab: TabLayout.Tab) = Unit
+        })
 
         val showWeatherDebugText: Boolean = this.prefs.getBoolean(
             com.BalancedLight.WindyWeather.SecretWallpaperSetting.Companion.PREF_KEY_SHOW_WEATHER_DEBUG_TEXT,
@@ -590,7 +690,7 @@ class SecretWallpaperSetting : Activity() {
             texturePackGroup.check(R.id.rb_texture_pack_hq)
         }
         texturePackGroup.setOnCheckedChangeListener({ group, checkedId ->
-            val pack: String? = if (checkedId === R.id.rb_texture_pack_legacy)
+            val pack: String? = if (checkedId == R.id.rb_texture_pack_legacy)
                 SecretWallpaperService.TEXTURE_PACK_LEGACY
             else
                 SecretWallpaperService.TEXTURE_PACK_HQ
@@ -608,123 +708,107 @@ class SecretWallpaperSetting : Activity() {
             ).show()
         })
 
-        val dayNightMode: Int = this.prefs.getInt(
-            SecretWallpaperService.PREF_KEY_DEBUG_DAY_NIGHT_MODE,
-            SecretWallpaperService.DAY_NIGHT_MODE_AUTO
-        )
-        when (dayNightMode) {
-            SecretWallpaperService.DAY_NIGHT_MODE_FORCE_DAY -> dayNightGroup.check(R.id.rb_day_night_day)
-            SecretWallpaperService.DAY_NIGHT_MODE_FORCE_NIGHT -> dayNightGroup.check(R.id.rb_day_night_night)
-            else -> dayNightGroup.check(R.id.rb_day_night_auto)
-        }
-        dayNightGroup.setOnCheckedChangeListener({ group, checkedId ->
-            var mode: Int = SecretWallpaperService.DAY_NIGHT_MODE_AUTO
-            if (checkedId === R.id.rb_day_night_day) {
-                mode = SecretWallpaperService.DAY_NIGHT_MODE_FORCE_DAY
-            } else if (checkedId === R.id.rb_day_night_night) {
-                mode = SecretWallpaperService.DAY_NIGHT_MODE_FORCE_NIGHT
-            }
-            val intent: Intent = Intent(SecretWallpaperService.ACTION_DEBUG_SET_DAY_NIGHT_MODE)
-            intent.setPackage(packageName)
-            intent.putExtra(SecretWallpaperService.EXTRA_DAY_NIGHT_MODE, mode)
-            sendBroadcast(intent)
-            Toast.makeText(this, R.string.settings_debug_day_night_updated, Toast.LENGTH_SHORT)
-                .show()
-        })
-
-        autoSceneButton.setOnClickListener({ v ->
-            sendForcedWeatherCode(WeatherSnapshot.UNKNOWN_WEATHER_CODE)
-            sendForcedScene(-1)
-            val refreshIntent: Intent = Intent(SecretWallpaperService.ACTION_FORCE_WEATHER_REFRESH)
-            refreshIntent.setPackage(packageName)
-            sendBroadcast(refreshIntent)
-            Toast.makeText(this, R.string.settings_debug_scene_auto, Toast.LENGTH_SHORT).show()
-        })
-        clearSceneButton.setOnClickListener({ v ->
-            forceScenePreset(
-                SecretWallpaperService.WeatherConditions.D1_CLEAR.ordinal,
-                WeatherSnapshot.UNKNOWN_WEATHER_CODE
-            )
-        })
-        cloudySceneButton.setOnClickListener({ v ->
-            forceScenePreset(
-                SecretWallpaperService.WeatherConditions.D2_CLOUDY.ordinal,
-                WeatherSnapshot.UNKNOWN_WEATHER_CODE
-            )
-        })
-        mostlyClearSceneButton.setOnClickListener({ v ->
-            forceScenePreset(
-                SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal,
-                WeatherSnapshot.UNKNOWN_WEATHER_CODE
-            )
-        })
-        drearySceneButton.setOnClickListener({ v ->
-            forceScenePreset(
-                SecretWallpaperService.WeatherConditions.D3_DREARY.ordinal,
-                WeatherSnapshot.UNKNOWN_WEATHER_CODE
-            )
-        })
-        fogSceneButton.setOnClickListener({ v ->
-            forceScenePreset(
-                SecretWallpaperService.WeatherConditions.D4_FOG.ordinal,
-                WeatherSnapshot.UNKNOWN_WEATHER_CODE
-            )
-        })
-        // Freezing fog visual preset: fog scene + Open-Meteo code 48.
-        freezingFogSceneButton.setOnClickListener({ v ->
-            forceScenePreset(
-                SecretWallpaperService.WeatherConditions.D4_FOG.ordinal,
-                48
-            )
-        })
-        rainSceneButton.setOnClickListener({ v ->
-            forceScenePreset(
-                SecretWallpaperService.WeatherConditions.D5_RAIN_SHOWERS.ordinal,
-                WeatherSnapshot.UNKNOWN_WEATHER_CODE
-            )
-        })
-        thunderSceneButton.setOnClickListener({ v ->
-            forceScenePreset(
-                SecretWallpaperService.WeatherConditions.D6_THUNDERSTORMS.ordinal,
-                WeatherSnapshot.UNKNOWN_WEATHER_CODE
-            )
-        })
-        snowSceneButton.setOnClickListener({ v ->
-            forceScenePreset(
-                SecretWallpaperService.WeatherConditions.D7_FLURRIES_SNOW.ordinal,
-                WeatherSnapshot.UNKNOWN_WEATHER_CODE
-            )
-        })
-        sleetSceneButton.setOnClickListener({ v ->
-            forceScenePreset(
-                SecretWallpaperService.WeatherConditions.D9_SLEET.ordinal,
-                WeatherSnapshot.UNKNOWN_WEATHER_CODE
-            )
-        })
-
         refreshStatus()
     }
 
-    private fun sendForcedScene(sceneOrdinal: Int) {
-        val intent: Intent = Intent(SecretWallpaperService.ACTION_DEBUG_SET_FORCED_SCENE)
-        intent.setPackage(packageName)
-        intent.putExtra(SecretWallpaperService.EXTRA_DEBUG_FORCED_SCENE, sceneOrdinal)
-        sendBroadcast(intent)
-        if (sceneOrdinal >= 0) {
-            Toast.makeText(this, R.string.settings_debug_scene_applied, Toast.LENGTH_SHORT).show()
+    private fun applyEdgeToEdgeInsets(
+        root: View,
+        toolbar: MaterialToolbar,
+        scrollView: NestedScrollView
+    ) {
+        val rootLeft = root.paddingLeft
+        val rootRight = root.paddingRight
+        val toolbarTop = toolbar.paddingTop
+        val scrollBottom = scrollView.paddingBottom
+        val insetTypes = WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val bars = insets.getInsets(insetTypes)
+            view.setPadding(rootLeft + bars.left, view.paddingTop, rootRight + bars.right, view.paddingBottom)
+            insets
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(toolbar) { view, insets ->
+            val bars = insets.getInsets(insetTypes)
+            view.setPadding(view.paddingLeft, toolbarTop + bars.top, view.paddingRight, view.paddingBottom)
+            insets
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(scrollView) { view, insets ->
+            val bars = insets.getInsets(insetTypes)
+            view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, scrollBottom + bars.bottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(root)
+    }
+
+    private fun seedFixedModePreferencesIfNeeded() {
+        val snapshot = WeatherDataCoordinator.readFromCache(this)
+        if (!this.prefs.contains(WallpaperModePreferences.KEY_FIXED_SCENE)) {
+            WallpaperModePreferences.setFixedScene(
+                this.prefs,
+                fixedPresetFromWeatherCode(snapshot?.weatherCode ?: WeatherSnapshot.UNKNOWN_WEATHER_CODE)
+            )
+        }
+        if (!this.prefs.contains(WallpaperModePreferences.KEY_FIXED_LIGHTING)) {
+            WallpaperModePreferences.setFixedLighting(this.prefs, effectiveFixedLighting(snapshot))
         }
     }
 
-    private fun sendForcedWeatherCode(weatherCode: Int) {
-        val intent: Intent = Intent(SecretWallpaperService.ACTION_DEBUG_SET_FORCED_WEATHER_CODE)
-        intent.setPackage(packageName)
-        intent.putExtra(SecretWallpaperService.EXTRA_DEBUG_FORCED_WEATHER_CODE, weatherCode)
-        sendBroadcast(intent)
+    private fun fixedPresetFromWeatherCode(weatherCode: Int): FixedScenePreset = when (weatherCode) {
+        0 -> FixedScenePresets.CLEAR
+        1 -> FixedScenePresets.MOSTLY_CLEAR
+        2 -> FixedScenePresets.CLOUDY
+        3 -> FixedScenePresets.DREARY
+        45 -> FixedScenePresets.FOG
+        48 -> FixedScenePresets.FREEZING_FOG
+        51, 53, 55, 61, 63, 65, 80, 81, 82 -> FixedScenePresets.RAIN
+        56, 57, 66, 67 -> FixedScenePresets.SLEET
+        71, 73, 75, 77, 85, 86 -> FixedScenePresets.SNOW
+        95, 96, 99 -> FixedScenePresets.THUNDER
+        else -> FixedScenePresets.CLEAR
     }
 
-    private fun forceScenePreset(sceneOrdinal: Int, weatherCodeOverride: Int) {
-        sendForcedWeatherCode(weatherCodeOverride)
-        sendForcedScene(sceneOrdinal)
+    private fun effectiveFixedLighting(snapshot: WeatherSnapshot?): FixedLighting {
+        val now = java.util.Calendar.getInstance()
+        val currentTime = now.get(java.util.Calendar.HOUR_OF_DAY) * 100 + now.get(java.util.Calendar.MINUTE)
+        val sunrise = snapshot?.sunriseTime ?: -1
+        val sunset = snapshot?.sunsetTime ?: -1
+        val hasUsableSolarTimes = sunrise in 0..2359 && sunset in 0..2359 && sunrise < sunset
+        val isDay = if (hasUsableSolarTimes) {
+            currentTime in sunrise until sunset
+        } else {
+            currentTime in 600 until 1800
+        }
+        return if (isDay) FixedLighting.DAY else FixedLighting.NIGHT
+    }
+
+    private fun setLocationConsentChecked(checked: Boolean) {
+        updatingLocationConsentSwitch = true
+        locationConsentSwitch?.isChecked = checked
+        updatingLocationConsentSwitch = false
+    }
+
+    private fun broadcastWallpaperMode(mode: WallpaperMode) {
+        sendBroadcast(
+            Intent(SecretWallpaperService.ACTION_SET_WALLPAPER_MODE)
+                .setPackage(packageName)
+                .putExtra(SecretWallpaperService.EXTRA_WALLPAPER_MODE, mode.preferenceValue)
+        )
+    }
+
+    private fun broadcastFixedScene(preset: FixedScenePreset) {
+        sendBroadcast(
+            Intent(SecretWallpaperService.ACTION_SET_FIXED_SCENE)
+                .setPackage(packageName)
+                .putExtra(SecretWallpaperService.EXTRA_FIXED_SCENE, preset.id)
+        )
+    }
+
+    private fun broadcastFixedLighting(lighting: FixedLighting) {
+        sendBroadcast(
+            Intent(SecretWallpaperService.ACTION_SET_FIXED_LIGHTING)
+                .setPackage(packageName)
+                .putExtra(SecretWallpaperService.EXTRA_FIXED_LIGHTING, lighting.preferenceValue)
+        )
     }
 
     private fun normalizeRefreshInterval(minutes: Int): Int {
@@ -761,7 +845,7 @@ class SecretWallpaperSetting : Activity() {
     }
 
     private fun isOpenMeteoFallbackSource(snapshot: WeatherSnapshot?): Boolean {
-        if (snapshot == null || snapshot.codeSource == null) {
+        if (snapshot == null) {
             return false
         }
         return WeatherSnapshot.SOURCE_OPEN_METEO_FALLBACK.equals(snapshot.codeSource)
@@ -809,31 +893,34 @@ class SecretWallpaperSetting : Activity() {
     }
 
     private fun showLocationDisclosure() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.settings_location_disclosure_title)
-            .setMessage(R.string.settings_location_disclosure_message)
-            .setPositiveButton(R.string.settings_location_disclosure_continue) { _, _ ->
-                LocationWeatherConsent.grant(this)
-                if (hasLocationPermission()) {
-                    locationConsentSwitch?.isChecked = true
-                    refreshStatus()
-                } else {
-                    requestLocationPermissionIfNeeded()
-                }
+        val content = layoutInflater.inflate(R.layout.dialog_location_disclosure, null, false)
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setView(content)
+            .create()
+
+        content.findViewById<MaterialButton>(R.id.btn_disclosure_privacy_policy).setOnClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL)))
+        }
+        content.findViewById<MaterialButton>(R.id.btn_disclosure_not_now).setOnClickListener {
+            setLocationConsentChecked(false)
+            revokeLocationWeatherConsent(showToast = false)
+            dialog.dismiss()
+        }
+        content.findViewById<MaterialButton>(R.id.btn_disclosure_continue).setOnClickListener {
+            LocationWeatherConsent.grant(this)
+            if (hasLocationPermission()) {
+                setLocationConsentChecked(true)
+                refreshStatus()
+            } else {
+                requestLocationPermissionIfNeeded()
             }
-            .setNegativeButton(R.string.settings_location_disclosure_cancel) { _, _ ->
-                locationConsentSwitch?.isChecked = false
-                revokeLocationWeatherConsent(showToast = false)
-            }
-            .setNeutralButton(R.string.settings_privacy_policy) { _, _ ->
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL)))
-                locationConsentSwitch?.isChecked = false
-            }
-            .setOnCancelListener {
-                locationConsentSwitch?.isChecked = false
-                revokeLocationWeatherConsent(showToast = false)
-            }
-            .show()
+            dialog.dismiss()
+        }
+        dialog.setOnCancelListener {
+            setLocationConsentChecked(false)
+            revokeLocationWeatherConsent(showToast = false)
+        }
+        dialog.show()
     }
 
     private fun revokeLocationWeatherConsent(showToast: Boolean = true) {
@@ -849,19 +936,58 @@ class SecretWallpaperSetting : Activity() {
         if (this.locationStatus == null) {
             return
         }
-        val locationText: String? = getString(
-            if (LocationWeatherConsent.isTransferAllowed(this))
-                R.string.settings_status_location_granted
-            else
-                R.string.settings_status_location_missing
+        val locationAllowed = LocationWeatherConsent.isTransferAllowed(this)
+        val samsungSelected = this::samsungWeatherSwitch.isInitialized && this.samsungWeatherSwitch.isChecked
+        val samsungLocalReady = samsungSelected &&
+            this.samsungProviderAvailable &&
+            hasSamsungWeatherPermission()
+        val waitingForLocation = locationAllowed &&
+            !samsungLocalReady &&
+            !OpenMeteoWeatherRepository.hasUsableCoordinates(this)
+        val statusLines = mutableListOf(
+            getString(
+                if (hasLocationPermission()) {
+                    R.string.settings_status_location_granted
+                } else {
+                    R.string.settings_status_location_missing
+                }
+            ),
+            getString(
+                when {
+                    LocationWeatherConsent.isGranted(this) ->
+                        R.string.settings_status_consent_granted
+                    LocationWeatherConsent.needsReconsent(this) ->
+                        R.string.settings_status_consent_needs_update
+                    else -> R.string.settings_status_consent_missing
+                }
+            )
         )
-        val weatherText: String? = getString(
-            if (hasSamsungWeatherPermission())
-                R.string.settings_status_weather_granted
-            else
-                R.string.settings_status_weather_missing
-        )
-        this.locationStatus?.text = locationText.toString() + "\n" + weatherText
+        if (waitingForLocation) {
+            statusLines += getString(R.string.settings_weather_waiting_for_location)
+        }
+        if (samsungSelected && this.samsungProviderAvailable) {
+            statusLines += getString(
+                if (hasSamsungWeatherPermission()) {
+                    R.string.settings_status_weather_granted
+                } else {
+                    R.string.settings_status_weather_missing
+                }
+            )
+        }
+        this.locationStatus?.text = statusLines.joinToString("\n")
+        if (this::permissionButton.isInitialized) {
+            val ready = hasLocationPermission() && LocationWeatherConsent.isGranted(this)
+            this.permissionButton.visibility = if (ready) View.GONE else View.VISIBLE
+        }
+        if (this::refreshButton.isInitialized) {
+            val liveMode = WallpaperModePreferences.mode(this.prefs) == WallpaperMode.LIVE_WEATHER
+            val selectedSourceAllowed = if (samsungSelected) {
+                this.samsungProviderAvailable && (hasSamsungWeatherPermission() || locationAllowed)
+            } else {
+                locationAllowed
+            }
+            this.refreshButton.isEnabled = liveMode && selectedSourceAllowed
+        }
         updateWeatherDebugText()
     }
 
@@ -892,10 +1018,7 @@ class SecretWallpaperSetting : Activity() {
                 SecretWallpaperService.WEATHER_SOURCE_OPEN_METEO
             )
         )
-        val codeSource: String? = if (snapshot != null && snapshot.codeSource != null)
-            snapshot.codeSource
-        else
-            WeatherSnapshot.SOURCE_UNKNOWN
+        val codeSource: String = snapshot?.codeSource ?: WeatherSnapshot.SOURCE_UNKNOWN
 
         val samsungSuccess = WeatherSnapshot.SOURCE_SAMSUNG.equals(codeSource)
                 || WeatherSnapshot.SOURCE_SAMSUNG_WITH_OPEN_METEO_FALLBACK.equals(codeSource)
@@ -908,13 +1031,6 @@ class SecretWallpaperSetting : Activity() {
             if (snapshot != null) snapshot.weatherCode else WeatherSnapshot.UNKNOWN_WEATHER_CODE
         val weatherName = describeWeatherCode(weatherCode)
         val lastUpdated = formatTimestamp(if (snapshot != null) snapshot.lastUpdatedMs else 0L)
-        val forcedCode: Int = this.prefs.getInt(
-            SecretWallpaperService.PREF_KEY_DEBUG_FORCED_WEATHER_CODE,
-            WeatherSnapshot.UNKNOWN_WEATHER_CODE
-        )
-        val forcedScene: Int =
-            this.prefs.getInt(SecretWallpaperService.PREF_KEY_DEBUG_FORCED_SCENE, -1)
-
         val debug: StringBuilder = StringBuilder(512)
         debug.append("Source mode: ").append(configuredSourceMode).append('\n')
         debug.append("Location weather consent: ")
@@ -940,8 +1056,7 @@ class SecretWallpaperSetting : Activity() {
                 .append(formatHourMinute(snapshot.sunsetTime))
                 .append('\n')
             debug.append("Moon phase index: ").append(snapshot.moonPhase).append('\n')
-            debug.append("City: ").append(if (snapshot.cityName == null) "" else snapshot.cityName)
-                .append('\n')
+            debug.append("City: ").append(snapshot.cityName).append('\n')
             debug.append("Last update: ").append(lastUpdated).append('\n')
         } else {
             debug.append("No cached weather snapshot\n")
@@ -949,8 +1064,6 @@ class SecretWallpaperSetting : Activity() {
         debug.append("Samsung permission: ").append(hasSamsungWeatherPermission()).append('\n')
         debug.append("Samsung provider available: ")
             .append(WeatherDataCoordinator.isSamsungLikelyAvailable(this)).append('\n')
-        debug.append("Forced weather code: ").append(forcedCode).append('\n')
-        debug.append("Forced scene ordinal: ").append(forcedScene).append('\n')
         debug.append("Cache stale (6h): ")
             .append(WeatherDataCoordinator.isCacheStale(this, 6L * 60L * 60L * 1000L))
         this.weatherDebugText?.text = debug.toString()
@@ -997,8 +1110,12 @@ class SecretWallpaperSetting : Activity() {
 
     protected override fun onResume() {
         super.onResume()
-        locationConsentSwitch?.isChecked = LocationWeatherConsent.isTransferAllowed(this)
+        setLocationConsentChecked(LocationWeatherConsent.isTransferAllowed(this))
         refreshStatus()
+        if (!reconsentPromptShown && LocationWeatherConsent.needsReconsent(this)) {
+            reconsentPromptShown = true
+            showLocationDisclosure()
+        }
     }
 
     override fun onRequestPermissionsResult(
@@ -1009,10 +1126,10 @@ class SecretWallpaperSetting : Activity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == com.BalancedLight.WindyWeather.SecretWallpaperSetting.Companion.REQUEST_LOCATION_PERMISSION) {
             if (hasLocationPermission() && LocationWeatherConsent.isGranted(this)) {
-                locationConsentSwitch?.isChecked = true
+                setLocationConsentChecked(true)
                 sendBroadcast(Intent(SecretWallpaperService.ACTION_FORCE_WEATHER_REFRESH).setPackage(packageName))
             } else {
-                locationConsentSwitch?.isChecked = false
+                setLocationConsentChecked(false)
                 revokeLocationWeatherConsent(showToast = false)
                 Toast.makeText(this, R.string.settings_location_permission_denied, Toast.LENGTH_SHORT).show()
             }

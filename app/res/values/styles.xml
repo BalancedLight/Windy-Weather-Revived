@@ -1,7 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="NoAnimation" parent="@android:style/Theme.DeviceDefault">
+    <style name="Theme.WindyWeather.Foundation" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/windy_primary</item>
+        <item name="colorOnPrimary">@color/windy_on_primary</item>
+        <item name="colorPrimaryContainer">@color/windy_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/windy_on_primary_container</item>
+        <item name="colorSecondary">@color/windy_secondary</item>
+        <item name="colorOnSecondary">@color/windy_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/windy_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/windy_on_secondary_container</item>
+        <item name="colorSurface">@color/windy_surface</item>
+        <item name="colorOnSurface">@color/windy_on_surface</item>
+        <item name="colorSurfaceVariant">@color/windy_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/windy_on_surface_variant</item>
+        <item name="colorOutline">@color/windy_outline</item>
+        <item name="android:colorBackground">@color/windy_background</item>
+        <item name="android:statusBarColor">@color/windy_surface</item>
+        <item name="android:navigationBarColor">@color/windy_surface</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.WindyWeather.MaterialAlertDialog</item>
+    </style>
+
+    <style name="Theme.WindyWeather" parent="Theme.WindyWeather.Foundation" />
+
+    <style name="NoAnimation" parent="Theme.WindyWeather">
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+
+    <style name="ThemeOverlay.WindyWeather.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorSurface">@color/windy_surface</item>
+        <item name="colorOnSurface">@color/windy_on_surface</item>
+    </style>
+
+    <style name="Widget.WindyWeather.SettingsCard" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/windy_surface_container</item>
+        <item name="cardCornerRadius">@dimen/settings_card_corner_radius</item>
+        <item name="cardElevation">0dp</item>
+    </style>
+
+    <style name="TextAppearance.WindyWeather.SectionTitle" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textColor">@color/windy_on_surface</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.WindyWeather.SectionSummary" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/windy_on_surface_variant</item>
     </style>
 </resources>

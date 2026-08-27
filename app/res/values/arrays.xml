@@ -9,4 +9,17 @@
         <item>6 hours</item>
         <item>Off</item>
     </string-array>
+
+    <string-array name="settings_fixed_scene_entries">
+        <item>@string/settings_fixed_scene_clear</item>
+        <item>@string/settings_fixed_scene_mostly_clear</item>
+        <item>@string/settings_fixed_scene_cloudy</item>
+        <item>@string/settings_fixed_scene_dreary</item>
+        <item>@string/settings_fixed_scene_fog</item>
+        <item>@string/settings_fixed_scene_freezing_fog</item>
+        <item>@string/settings_fixed_scene_rain</item>
+        <item>@string/settings_fixed_scene_thunder</item>
+        <item>@string/settings_fixed_scene_snow</item>
+        <item>@string/settings_fixed_scene_sleet</item>
+    </string-array>
 </resources>

@@ -1,388 +1,624 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/settings_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/windy_background"
+    android:orientation="vertical">
 
-    <LinearLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/settings_toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="24dp">
+        android:background="@color/windy_surface"
+        android:minHeight="?attr/actionBarSize"
+        app:title="@string/settings_toolbar_title"
+        app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
 
-        <TextView
-            android:id="@+id/text_independence_notice"
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/settings_tabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/windy_surface"
+        app:tabGravity="fill"
+        app:tabIndicatorFullWidth="false"
+        app:tabMode="fixed">
+
+        <com.google.android.material.tabs.TabItem
+            android:id="@+id/tab_live_weather"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_tab_live_weather" />
+
+        <com.google.android.material.tabs.TabItem
+            android:id="@+id/tab_fixed_scene"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_tab_fixed_scene" />
+    </com.google.android.material.tabs.TabLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/settings_scroll_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:id="@+id/settings_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:text="@string/independence_notice"
-            android:textSize="14sp" />
+            android:orientation="vertical"
+            android:paddingStart="@dimen/settings_page_margin"
+            android:paddingTop="@dimen/settings_page_margin"
+            android:paddingEnd="@dimen/settings_page_margin"
+            android:paddingBottom="32dp">
 
-        <Button
-            android:id="@+id/btn_privacy_policy"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_privacy_policy" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="16dp"
-            android:autoLink="web"
-            android:text="@string/open_meteo_attribution"
-            android:textSize="13sp" />
-
-        <Switch
-            android:id="@+id/switch_location_weather_consent"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:text="@string/settings_location_weather_consent" />
-
-        <TextView
-            android:id="@+id/location_status"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:textSize="16sp" />
-
-        <Button
-            android:id="@+id/btn_permission"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_open_location_permissions" />
-
-        <Button
-            android:id="@+id/btn_location_settings"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/settings_open_device_location" />
-
-        <Button
-            android:id="@+id/btn_refresh"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/settings_refresh_weather" />
-
-        <Switch
-            android:id="@+id/switch_use_samsung_weather"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="@string/settings_weather_source_samsung_toggle" />
-
-        <include layout="@layout/distribution_weather_options" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="@string/settings_display_title"
-            android:textStyle="bold" />
-
-        <Switch
-            android:id="@+id/switch_show_city_name"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="@string/settings_show_city_name" />
-
-        <Switch
-            android:id="@+id/switch_show_legacy_logo"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_show_legacy_logo" />
-
-        <Switch
-            android:id="@+id/switch_ground_parallax"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_ground_parallax" />
-
-        <Switch
-            android:id="@+id/switch_sunrise_sunset_skies"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_sunrise_sunset_skies" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/settings_texture_pack_title"
-            android:textStyle="bold" />
-
-        <RadioGroup
-            android:id="@+id/radio_texture_pack"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp">
-
-            <RadioButton
-                android:id="@+id/rb_texture_pack_hq"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/layout_live_weather_workspace"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/settings_texture_pack_hq" />
+                android:orientation="vertical">
 
-            <RadioButton
-                android:id="@+id/rb_texture_pack_legacy"
-                android:layout_width="wrap_content"
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_live_weather"
+                    style="@style/Widget.WindyWeather.SettingsCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/settings_card_padding">
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_live_weather_title"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionTitle" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/settings_live_weather_summary"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionSummary" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_location_weather_consent"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_location_weather_consent" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/location_status"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_permission"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_open_location_permissions" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_location_settings"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_open_device_location" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_refresh"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_refresh_weather" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_use_samsung_weather"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_weather_source_samsung_toggle" />
+
+                        <include layout="@layout/distribution_weather_options" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:text="@string/settings_weather_refresh_title"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelLarge" />
+
+                        <Spinner
+                            android:id="@+id/spinner_weather_refresh_interval"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:spinnerMode="dropdown" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layout_fixed_scene_workspace"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/settings_texture_pack_legacy" />
-        </RadioGroup>
+                android:orientation="vertical"
+                android:visibility="gone">
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="@string/settings_day_night_mode"
-            android:textStyle="bold" />
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_fixed_scene"
+                    style="@style/Widget.WindyWeather.SettingsCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
 
-        <RadioGroup
-            android:id="@+id/radio_day_night_mode"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/settings_card_padding">
 
-            <RadioButton
-                android:id="@+id/rb_day_night_auto"
-                android:layout_width="wrap_content"
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_fixed_scene_title"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionTitle" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/settings_fixed_scene_summary"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionSummary" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/fixed_scene_input_layout"
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:hint="@string/settings_fixed_scene_label">
+
+                            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                                android:id="@+id/dropdown_fixed_scene"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:entries="@array/settings_fixed_scene_entries"
+                            android:inputType="none" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:text="@string/settings_day_night_mode"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelLarge" />
+
+                        <RadioGroup
+                            android:id="@+id/radio_day_night_mode"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.radiobutton.MaterialRadioButton
+                                android:id="@+id/rb_day_night_auto"
+                                android:layout_width="0dp"
+                                android:layout_height="0dp"
+                                android:visibility="gone" />
+
+                            <com.google.android.material.radiobutton.MaterialRadioButton
+                                android:id="@+id/rb_day_night_day"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:minHeight="@dimen/settings_control_min_height"
+                                android:text="@string/settings_day_night_day" />
+
+                            <com.google.android.material.radiobutton.MaterialRadioButton
+                                android:id="@+id/rb_day_night_night"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:minHeight="@dimen/settings_control_min_height"
+                                android:text="@string/settings_day_night_night" />
+                        </RadioGroup>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_apply_fixed_scene"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_fixed_scene_apply" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layout_shared_settings"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/settings_day_night_auto" />
+                android:orientation="vertical">
 
-            <RadioButton
-                android:id="@+id/rb_day_night_day"
-                android:layout_width="wrap_content"
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_display"
+                    style="@style/Widget.WindyWeather.SettingsCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/settings_card_spacing">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/settings_card_padding">
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_display_title"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionTitle" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/settings_display_summary"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionSummary" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_show_city_name"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_show_city_name" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_show_legacy_logo"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_show_legacy_logo" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_ground_parallax"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_ground_parallax" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_sunrise_sunset_skies"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_sunrise_sunset_skies" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_appearance"
+                    style="@style/Widget.WindyWeather.SettingsCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/settings_card_spacing">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/settings_card_padding">
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_appearance_title"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionTitle" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/settings_appearance_summary"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionSummary" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:text="@string/settings_texture_pack_title"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelLarge" />
+
+                        <RadioGroup
+                            android:id="@+id/radio_texture_pack"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.radiobutton.MaterialRadioButton
+                                android:id="@+id/rb_texture_pack_hq"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:minHeight="@dimen/settings_control_min_height"
+                                android:text="@string/settings_texture_pack_hq" />
+
+                            <com.google.android.material.radiobutton.MaterialRadioButton
+                                android:id="@+id/rb_texture_pack_legacy"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:minHeight="@dimen/settings_control_min_height"
+                                android:text="@string/settings_texture_pack_legacy" />
+                        </RadioGroup>
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:text="@string/settings_legacy_behaviours_title"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelLarge" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_old_night_effect"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_old_night_effect" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_hide_thunder_raindrops_legacy"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_hide_thunder_raindrops_legacy" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_legacy_below_freezing_frost"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_legacy_below_freezing_frost" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_legacy_humidity_waterdrop"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_legacy_humidity_waterdrop" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_legacy_delay_snow_ground"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_legacy_delay_snow_ground" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_legacy_classic_watermark"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_legacy_classic_watermark" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_performance"
+                    style="@style/Widget.WindyWeather.SettingsCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/settings_card_spacing">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/settings_card_padding">
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_performance_title"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionTitle" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/settings_performance_summary"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionSummary" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/text_target_fps_value"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:text="@string/settings_target_fps_value"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                        <SeekBar
+                            android:id="@+id/seek_target_fps"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/settings_control_min_height" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/text_power_save_fps_value"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:text="@string/settings_power_save_fps_value"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                        <SeekBar
+                            android:id="@+id/seek_power_save_fps"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/settings_control_min_height" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_frame_rate_dependent_animation"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_frame_rate_dependent_animation" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_diagnostics"
+                    style="@style/Widget.WindyWeather.SettingsCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/settings_card_spacing">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/settings_card_padding">
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_diagnostics_title"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionTitle" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/settings_diagnostics_summary"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionSummary" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_show_weather_debug_text"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_show_weather_debug_text" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/text_weather_debug_info"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:fontFamily="monospace"
+                            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                            android:visibility="gone" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_about"
+                    style="@style/Widget.WindyWeather.SettingsCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/settings_card_spacing">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/settings_card_padding">
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_about_title"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionTitle" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/settings_about_summary"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionSummary" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/text_independence_notice"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:text="@string/independence_notice"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:autoLink="web"
+                            android:text="@string/open_meteo_attribution"
+                            android:textAppearance="@style/TextAppearance.Material3.BodySmall" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_privacy"
+                    style="@style/Widget.WindyWeather.SettingsCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/settings_card_spacing">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/settings_card_padding">
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_privacy_title"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionTitle" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/settings_privacy_summary"
+                            android:textAppearance="@style/TextAppearance.WindyWeather.SectionSummary" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_privacy_policy"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/settings_control_spacing"
+                            android:minHeight="@dimen/settings_control_min_height"
+                            android:text="@string/settings_privacy_policy" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_close"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/settings_day_night_day" />
-
-            <RadioButton
-                android:id="@+id/rb_day_night_night"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/settings_day_night_night" />
-        </RadioGroup>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/settings_weather_refresh_title"
-            android:textStyle="bold" />
-
-        <Spinner
-            android:id="@+id/spinner_weather_refresh_interval"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/settings_performance_title"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/text_target_fps_value"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_target_fps_value" />
-
-        <SeekBar
-            android:id="@+id/seek_target_fps"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp" />
-
-        <TextView
-            android:id="@+id/text_power_save_fps_value"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_power_save_fps_value" />
-
-        <SeekBar
-            android:id="@+id/seek_power_save_fps"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp" />
-
-        <Switch
-            android:id="@+id/switch_frame_rate_dependent_animation"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="@string/settings_frame_rate_dependent_animation" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="@string/settings_legacy_behaviours_title"
-            android:textStyle="bold" />
-
-        <Switch
-            android:id="@+id/switch_old_night_effect"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="@string/settings_old_night_effect" />
-
-        <Switch
-            android:id="@+id/switch_hide_thunder_raindrops_legacy"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_hide_thunder_raindrops_legacy" />
-
-        <Switch
-            android:id="@+id/switch_legacy_below_freezing_frost"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_legacy_below_freezing_frost" />
-
-        <Switch
-            android:id="@+id/switch_legacy_humidity_waterdrop"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_legacy_humidity_waterdrop" />
-
-        <Switch
-            android:id="@+id/switch_legacy_delay_snow_ground"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_legacy_delay_snow_ground" />
-
-        <Switch
-            android:id="@+id/switch_legacy_classic_watermark"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_legacy_classic_watermark" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="@string/settings_debug_title"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_debug_force_scene"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/btn_force_auto"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="@string/settings_scene_auto" />
-
-        <Button
-            android:id="@+id/btn_force_clear"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_scene_clear" />
-
-        <Button
-            android:id="@+id/btn_force_cloudy"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_scene_cloudy" />
-
-        <Button
-            android:id="@+id/btn_force_mostly_clear"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_scene_mostly_clear" />
-
-        <Button
-            android:id="@+id/btn_force_dreary"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_scene_dreary" />
-
-        <Button
-            android:id="@+id/btn_force_fog"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_scene_fog" />
-
-        <Button
-            android:id="@+id/btn_force_freezing_fog"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_scene_freezing_fog" />
-
-        <Button
-            android:id="@+id/btn_force_rain"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_scene_rain" />
-
-        <Button
-            android:id="@+id/btn_force_thunder"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_scene_thunder" />
-
-        <Button
-            android:id="@+id/btn_force_snow"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_scene_snow" />
-
-        <Button
-            android:id="@+id/btn_force_sleet"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_scene_sleet" />
-
-        <Switch
-            android:id="@+id/switch_show_weather_debug_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="@string/settings_show_weather_debug_text" />
-
-        <TextView
-            android:id="@+id/text_weather_debug_info"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:fontFamily="monospace"
-            android:textSize="12sp"
-            android:visibility="gone" />
-
-        <Button
-            android:id="@+id/btn_close"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/settings_close" />
-
-    </LinearLayout>
-</ScrollView>
+                android:layout_marginTop="@dimen/settings_card_spacing"
+                android:minHeight="@dimen/settings_control_min_height"
+                android:text="@string/settings_close" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

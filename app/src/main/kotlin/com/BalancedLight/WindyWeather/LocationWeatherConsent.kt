@@ -8,7 +8,7 @@ import androidx.core.content.ContextCompat
 internal object LocationWeatherConsent {
     private const val PREF_NAME = "weather_privacy"
     private const val KEY_CONSENT_VERSION = "location_weather_consent_version"
-    internal const val CURRENT_VERSION = 1
+    internal const val CURRENT_VERSION = 2
 
     fun isGranted(context: Context?): Boolean {
         if (context == null) {
@@ -17,6 +17,19 @@ internal object LocationWeatherConsent {
         val storedVersion = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
             .getInt(KEY_CONSENT_VERSION, 0)
         return isVersionAccepted(storedVersion)
+    }
+
+    /**
+     * True when the user accepted an earlier disclosure that has since been superseded,
+     * so the settings screen can re-ask instead of silently dropping weather updates.
+     */
+    fun needsReconsent(context: Context?): Boolean {
+        if (context == null) {
+            return false
+        }
+        val storedVersion = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            .getInt(KEY_CONSENT_VERSION, 0)
+        return needsReconsent(storedVersion)
     }
 
     fun hasCoarseLocationPermission(context: Context?): Boolean {
@@ -52,6 +65,10 @@ internal object LocationWeatherConsent {
 
     internal fun isVersionAccepted(storedVersion: Int): Boolean {
         return storedVersion == CURRENT_VERSION
+    }
+
+    internal fun needsReconsent(storedVersion: Int): Boolean {
+        return storedVersion in 1 until CURRENT_VERSION
     }
 
     internal fun isTransferAllowed(storedVersion: Int, coarsePermissionGranted: Boolean): Boolean {

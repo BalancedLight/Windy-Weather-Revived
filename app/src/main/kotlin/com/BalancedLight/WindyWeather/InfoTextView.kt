@@ -8,7 +8,7 @@ import android.util.TypedValue
 import android.view.View
 import android.widget.TextView
 
-class InfoTextView(context: Context?, _width: Int, _height: Int) : TextView(context) {
+class InfoTextView(context: Context, _width: Int, _height: Int) : TextView(context) {
     private val ClearColor = 0
     private var mCanvas: Canvas? = null
     private var mHeight: Int

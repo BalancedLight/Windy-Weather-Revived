@@ -1,15 +1,20 @@
 package com.BalancedLight.WindyWeather
 
-import android.Manifest
 import android.content.Context
 import android.content.SharedPreferences
-import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
+import androidx.core.location.LocationManagerCompat
+import androidx.core.os.CancellationSignal
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
+import com.google.android.gms.tasks.Task
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -21,8 +26,11 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.ArrayList
 import java.util.Locale
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 internal object OpenMeteoWeatherRepository {
     private val TAG = "OpenMeteoRepository"
@@ -41,9 +49,25 @@ internal object OpenMeteoWeatherRepository {
     private val KEY_LAST_UPDATE_MS = "last_update_ms"
     private val KEY_LAST_LAT = "last_lat"
     private val KEY_LAST_LON = "last_lon"
-    private const val DEFAULT_LAT = 37.7749
-    private val DEFAULT_LON = -122.4194
+    private val KEY_LAST_COORD_MS = "last_coord_ms"
     private val DEFAULT_STALE_MAX_AGE_MS = 6L * 60L * 60L * 1000L
+    private const val CURRENT_LOCATION_TIMEOUT_SECONDS = 5L
+
+    /** A fix older than this is not trusted to answer "where is the device now". */
+    private const val MAX_LAST_KNOWN_AGE_MS = 30L * 60L * 1000L
+
+    /** Assumed horizontal error, in metres, for a fix that reports no accuracy. */
+    private const val UNKNOWN_ACCURACY_METRES = 3000.0
+
+    /** Metres of assumed drift per second of age, used to age out a stale fix. */
+    private const val AGE_PENALTY_METRES_PER_SECOND = 1.0
+
+    /**
+     * Coordinates persisted from an earlier refresh expire after this window. Without an
+     * expiry the very first fix ever cached is reused forever and the wallpaper silently
+     * reports another region's weather.
+     */
+    private const val CACHED_COORDINATE_MAX_AGE_MS = 24L * 60L * 60L * 1000L
 
     private val EXECUTOR: ExecutorService = Executors.newSingleThreadExecutor()
     private val MAIN_HANDLER: Handler = Handler(Looper.getMainLooper())
@@ -292,15 +316,17 @@ internal object OpenMeteoWeatherRepository {
                 com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.PREF_NAME,
                 Context.MODE_PRIVATE
             )
-            val latLon: LatLon =
+            val coordinates: RoundedCoordinates =
                 com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.resolveLocation(
                     context,
                     preferences
-                )
+                ) ?: run {
+                    Log.w(TAG, "Weather refresh skipped because no consented location is available")
+                    return null
+                }
             val body: String =
                 com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.downloadForecast(
-                    latLon.latitude,
-                    latLon.longitude
+                    coordinates
                 )
             val root: JSONObject = JSONObject(body)
             val daily: JSONObject = root.getJSONObject("daily")
@@ -358,15 +384,15 @@ internal object OpenMeteoWeatherRepository {
                     ), fallbackSunset
                 )
             val moonPhase = DistributionFeatures.resolveMoonPhase(
-                latLon.latitude,
-                latLon.longitude,
+                coordinates.latitude,
+                coordinates.longitude,
                 fallback
             )
 
-            var city = fallback?.cityName.orEmpty()
-            if (city.isEmpty()) {
-                city = "Current location"
-            }
+            val city = CachingPlaceNameResolver(
+                AndroidGeocoderPlaceNameResolver(context),
+                SharedPreferencesPlaceNameCache(preferences)
+            ).resolve(coordinates).ifEmpty { fallback?.cityName.orEmpty() }
 
             Log.d(
                 com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.TAG,
@@ -376,8 +402,8 @@ internal object OpenMeteoWeatherRepository {
                         + " humidity=" + humidityPercent
                         + " windSpeedKmh=" + windSpeedKmh
                         + " city=" + city
-                        + " lat=" + latLon.latitude
-                        + " lon=" + latLon.longitude)
+                        + " lat=" + coordinates.latitude
+                        + " lon=" + coordinates.longitude)
             )
 
             return WeatherSnapshot(
@@ -404,53 +430,100 @@ internal object OpenMeteoWeatherRepository {
         }
     }
 
-    private fun resolveLocation(context: Context, preferences: SharedPreferences): LatLon {
-        val cachedLat: Double = java.lang.Double.longBitsToDouble(
-            preferences.getLong(
-                com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.KEY_LAST_LAT,
-                java.lang.Double.doubleToLongBits(com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.DEFAULT_LAT)
-            )
-        )
-        val cachedLon: Double = java.lang.Double.longBitsToDouble(
-            preferences.getLong(
-                com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.KEY_LAST_LON,
-                java.lang.Double.doubleToLongBits(com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.DEFAULT_LON)
-            )
-        )
+    internal fun hasUsableCoordinates(context: Context?): Boolean {
+        if (context == null || !LocationWeatherConsent.isTransferAllowed(context)) {
+            return false
+        }
+        val appContext = context.applicationContext
+        val preferences = appContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        if (readCachedCoordinates(preferences) != null) {
+            return true
+        }
+        val lastKnown = getBestLastKnownLocation(appContext) ?: return false
+        return LocationPrivacy.roundCoordinates(lastKnown.latitude, lastKnown.longitude) != null
+    }
+
+    /**
+     * Order matters. A recent fix wins outright; otherwise we actively ask for one before
+     * falling back to anything stale, so the wallpaper stops trailing the device.
+     */
+    private fun resolveLocation(
+        context: Context,
+        preferences: SharedPreferences
+    ): RoundedCoordinates? {
         if (!LocationWeatherConsent.isTransferAllowed(context)) {
-            return com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.LatLon(
-                cachedLat,
-                cachedLon
-            )
+            return null
         }
-        val location: Location? =
-            com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.getBestLastKnownLocation(
-                context
-            )
+        val lastKnown = bestFix(
+            getBestLastKnownLocation(context),
+            requestFusedLastLocation(context)
+        )
+        val location = lastKnown?.takeIf { it.isRecent(MAX_LAST_KNOWN_AGE_MS) }
+            ?: requestFusedCurrentLocation(context)
+            ?: requestPlatformCurrentLocation(context)
+            ?: lastKnown
         if (location == null) {
-            return com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.LatLon(
-                cachedLat,
-                cachedLon
-            )
+            return readCachedCoordinates(preferences)
         }
-        val roundedLatitude = LocationPrivacy.roundCoordinate(location.latitude)
-        val roundedLongitude = LocationPrivacy.roundCoordinate(location.longitude)
+        val coordinates = LocationPrivacy.roundCoordinates(location.latitude, location.longitude)
+            ?: return readCachedCoordinates(preferences)
         preferences
             .edit()
-            .putLong(
-                com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.KEY_LAST_LAT,
-                java.lang.Double.doubleToLongBits(roundedLatitude)
-            )
-            .putLong(
-                com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.KEY_LAST_LON,
-                java.lang.Double.doubleToLongBits(roundedLongitude)
-            )
+            .putLong(KEY_LAST_LAT, java.lang.Double.doubleToLongBits(coordinates.latitude))
+            .putLong(KEY_LAST_LON, java.lang.Double.doubleToLongBits(coordinates.longitude))
+            .putLong(KEY_LAST_COORD_MS, System.currentTimeMillis())
             .apply()
-        return com.BalancedLight.WindyWeather.OpenMeteoWeatherRepository.LatLon(
-            roundedLatitude,
-            roundedLongitude
-        )
+        return coordinates
     }
+
+    private fun readCachedCoordinates(preferences: SharedPreferences): RoundedCoordinates? {
+        // Entries written before coordinate ages were recorded have an unknown age, so they
+        // are treated as expired rather than pinning the wallpaper to a long-gone location.
+        val storedMs = preferences.getLong(KEY_LAST_COORD_MS, 0L)
+        if (!LocationPrivacy.isCoordinateCacheUsable(
+                storedMs,
+                System.currentTimeMillis(),
+                CACHED_COORDINATE_MAX_AGE_MS
+            )
+        ) {
+            Log.d(TAG, "Ignoring cached coordinates that are expired or of unknown age")
+            return null
+        }
+        val latitude = if (preferences.contains(KEY_LAST_LAT)) {
+            java.lang.Double.longBitsToDouble(preferences.getLong(KEY_LAST_LAT, 0L))
+        } else {
+            null
+        }
+        val longitude = if (preferences.contains(KEY_LAST_LON)) {
+            java.lang.Double.longBitsToDouble(preferences.getLong(KEY_LAST_LON, 0L))
+        } else {
+            null
+        }
+        return LocationPrivacy.storedCoordinates(latitude, longitude)
+    }
+
+    private fun Location.ageMs(): Long =
+        (SystemClock.elapsedRealtimeNanos() - elapsedRealtimeNanos) / 1_000_000L
+
+    private fun Location.isRecent(maxAgeMs: Long): Boolean = ageMs() in 0L..maxAgeMs
+
+    /**
+     * Rough "how wrong might this be", in metres, blending reported accuracy with age.
+     * Lower is better. Providers disagree more than they admit, so the sharper fix wins
+     * rather than whichever one answered first.
+     */
+    private fun Location.fixQuality(): Double {
+        val reported = if (hasAccuracy() && accuracy > 0f) {
+            accuracy.toDouble()
+        } else {
+            UNKNOWN_ACCURACY_METRES
+        }
+        val ageSeconds = ageMs().coerceAtLeast(0L) / 1000.0
+        return reported + (ageSeconds * AGE_PENALTY_METRES_PER_SECOND)
+    }
+
+    private fun bestFix(vararg candidates: Location?): Location? =
+        candidates.filterNotNull().minByOrNull { it.fixQuality() }
 
     private fun getBestLastKnownLocation(context: Context): Location? {
         val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager?
@@ -466,24 +539,176 @@ internal object OpenMeteoWeatherRepository {
                 val candidate: Location? = manager.getLastKnownLocation(provider)
                 candidate
             } catch (_: SecurityException) {
+                // Coarse-only callers may not read every provider below API 31.
                 null
             } catch (_: IllegalArgumentException) {
                 null
             } ?: continue
-            if (best == null || candidate.time > best.time) {
-                best = candidate
-            }
+            best = bestFix(best, candidate)
         }
         return best
     }
 
+    /**
+     * Play services keeps its own coarse-granted cache, and it is the one fused call that
+     * returns reliably under ACCESS_COARSE_LOCATION alone. It is only a candidate though:
+     * its network-derived fix can be confidently wrong, so it is ranked, never trusted on
+     * sight.
+     */
+    private fun requestFusedLastLocation(context: Context): Location? {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            return null
+        }
+        return try {
+            awaitLocationTask(
+                LocationServices.getFusedLocationProviderClient(context).getLastLocation(),
+                "Fused last location"
+            )
+        } catch (error: SecurityException) {
+            Log.w(TAG, "Fused location rejected coarse access", error)
+            null
+        } catch (error: RuntimeException) {
+            Log.w(TAG, "Fused location is unavailable", error)
+            null
+        }
+    }
+
+    private fun requestFusedCurrentLocation(context: Context): Location? {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            Log.w(TAG, "Fused current location request skipped on the main thread")
+            return null
+        }
+        val cancellation = CancellationTokenSource()
+        return try {
+            Log.d(TAG, "Waiting for a fused current approximate location")
+            awaitLocationTask(
+                // PRIORITY_HIGH_ACCURACY is a fine-location priority; without
+                // ACCESS_FINE_LOCATION it is silently degraded and tends to stall.
+                LocationServices.getFusedLocationProviderClient(context).getCurrentLocation(
+                    Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                    cancellation.token
+                ),
+                "Fused current location"
+            )
+        } catch (error: SecurityException) {
+            Log.w(TAG, "Fused location rejected coarse access", error)
+            null
+        } catch (error: RuntimeException) {
+            Log.w(TAG, "Fused location is unavailable", error)
+            null
+        } finally {
+            cancellation.cancel()
+        }
+    }
+
+    private fun awaitLocationTask(task: Task<Location>, label: String): Location? {
+        val result = AtomicReference<Location?>()
+        val completed = CountDownLatch(1)
+        task
+            .addOnSuccessListener { location ->
+                result.set(location)
+                completed.countDown()
+            }
+            .addOnFailureListener { error ->
+                Log.w(TAG, label + " failed", error)
+                completed.countDown()
+            }
+            .addOnCanceledListener { completed.countDown() }
+        return try {
+            if (completed.await(CURRENT_LOCATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                result.get()
+            } else {
+                Log.w(TAG, label + " timed out")
+                null
+            }
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+            null
+        }
+    }
+
+    private fun requestPlatformCurrentLocation(context: Context): Location? {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            Log.w(TAG, "Current location request skipped on the main thread")
+            return null
+        }
+        val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager?
+            ?: return null
+        val providers = try {
+            // GPS is deliberately included: from API 31 a coarse-only caller receives a
+            // coarsened GPS fix, and below that the per-provider SecurityException catch
+            // skips it. Excluding it outright threw away the only fix on many devices.
+            LocationProviderOrder.active(
+                listOf(LocationManager.NETWORK_PROVIDER, "fused") +
+                    manager.getProviders(true)
+            ).filter { provider ->
+                try {
+                    manager.isProviderEnabled(provider)
+                } catch (_: Exception) {
+                    false
+                }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+        if (providers.isEmpty()) {
+            Log.w(TAG, "Current location request skipped because no active provider is available")
+            return null
+        }
+
+        val result = AtomicReference<Location?>()
+        val completed = CountDownLatch(1)
+        val cancellation = CancellationSignal()
+        val executor = ContextCompat.getMainExecutor(context)
+        var requested = 0
+        // Every provider is asked at once and the first real answer wins, so the wait costs
+        // one timeout in total rather than one per provider.
+        for (provider in providers) {
+            try {
+                LocationManagerCompat.getCurrentLocation(
+                    manager,
+                    provider,
+                    cancellation,
+                    executor
+                ) { location ->
+                    if (location != null && result.compareAndSet(null, location)) {
+                        completed.countDown()
+                    }
+                }
+                requested++
+            } catch (error: SecurityException) {
+                Log.w(TAG, "Location provider " + provider + " rejected coarse access", error)
+            } catch (error: IllegalArgumentException) {
+                Log.w(TAG, "Location provider " + provider + " is no longer available", error)
+            } catch (error: RuntimeException) {
+                Log.w(TAG, "Location provider " + provider + " could not start", error)
+            }
+        }
+        if (requested == 0) {
+            Log.w(TAG, "Current location request skipped because no provider accepted it")
+            return null
+        }
+
+        Log.d(TAG, "Waiting for a current approximate location")
+        try {
+            if (!completed.await(CURRENT_LOCATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                Log.w(TAG, "Current approximate location request timed out")
+            }
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+        } finally {
+            cancellation.cancel()
+        }
+        return result.get()
+    }
+
     @Throws(IOException::class)
-    private fun downloadForecast(latitude: Double, longitude: Double): String {
+    private fun downloadForecast(coordinates: RoundedCoordinates): String {
         val endpoint: String? = String.format(
             Locale.US,
             "https://api.open-meteo.com/v1/forecast?latitude=%.2f&longitude=%.2f&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&current=weather_code,temperature_2m,relative_humidity_2m,wind_speed_10m&forecast_days=1&timezone=auto",
-            latitude,
-            longitude
+            coordinates.latitude,
+            coordinates.longitude
         )
         val connection: HttpURLConnection = URL(endpoint).openConnection() as HttpURLConnection
         connection.setConnectTimeout(10000)
@@ -545,6 +770,5 @@ internal object OpenMeteoWeatherRepository {
         fun onWeatherUpdated(snapshot: WeatherSnapshot?)
     }
 
-    private class LatLon(val latitude: Double, val longitude: Double)
 }
 

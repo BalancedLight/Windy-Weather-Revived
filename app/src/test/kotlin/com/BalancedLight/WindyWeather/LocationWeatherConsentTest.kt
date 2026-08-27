@@ -16,6 +16,18 @@ class LocationWeatherConsentTest {
         assertFalse(LocationWeatherConsent.isTransferAllowed(LocationWeatherConsent.CURRENT_VERSION - 1, true))
     }
 
+    @Test fun versionOneConsentIsInvalidatedByExpandedRecipientDisclosure() {
+        assertEquals(2, LocationWeatherConsent.CURRENT_VERSION)
+        assertFalse(LocationWeatherConsent.isVersionAccepted(1))
+        assertFalse(LocationWeatherConsent.isTransferAllowed(1, true))
+    }
+
+    @Test fun supersededConsentIsDistinguishedFromNeverHavingConsented() {
+        assertTrue(LocationWeatherConsent.needsReconsent(1))
+        assertFalse(LocationWeatherConsent.needsReconsent(0))
+        assertFalse(LocationWeatherConsent.needsReconsent(LocationWeatherConsent.CURRENT_VERSION))
+    }
+
     @Test fun denialAndRevocationReturnToUnapprovedState() {
         assertEquals(0, LocationWeatherConsent.versionAfterPermissionResult(false))
         assertFalse(LocationWeatherConsent.isVersionAccepted(0))

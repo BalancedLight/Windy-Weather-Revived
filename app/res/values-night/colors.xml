@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="windy_primary">#9ECAFA</color>
+    <color name="windy_on_primary">#003256</color>
+    <color name="windy_primary_container">#174A6D</color>
+    <color name="windy_on_primary_container">#D1E4FF</color>
+    <color name="windy_secondary">#BAC8DB</color>
+    <color name="windy_on_secondary">#243140</color>
+    <color name="windy_secondary_container">#3A4857</color>
+    <color name="windy_on_secondary_container">#D6E4F7</color>
+    <color name="windy_background">#111418</color>
+    <color name="windy_surface">#111418</color>
+    <color name="windy_surface_container">#1D2024</color>
+    <color name="windy_surface_variant">#42474E</color>
+    <color name="windy_on_surface">#E2E2E8</color>
+    <color name="windy_on_surface_variant">#C2C7CF</color>
+    <color name="windy_outline">#8C9199</color>
+</resources>

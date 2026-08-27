@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Switch xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.materialswitch.MaterialSwitch xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/switch_sync_aeroweather_refresh"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="8dp"
+    android:layout_marginTop="@dimen/settings_control_spacing"
+    android:minHeight="@dimen/settings_control_min_height"
     android:text="@string/settings_sync_aeroweather_refresh_toggle" />

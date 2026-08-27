@@ -4,4 +4,25 @@
     <string name="setting_title">Weather auto update settings</string>
     <string name="wallpaper_description">Reflects the current weather via a windmill scene</string>
     <string name="cancel">Cancel</string>
+    <string name="settings_toolbar_title">Windy Weather settings</string>
+    <string name="settings_tab_live_weather">Live Weather</string>
+    <string name="settings_tab_fixed_scene">Fixed Scene</string>
+    <string name="settings_live_weather_title">Live weather</string>
+    <string name="settings_live_weather_summary">Keep the wallpaper synchronized with local conditions.</string>
+    <string name="settings_fixed_scene_title">Fixed scene</string>
+    <string name="settings_fixed_scene_summary">Choose one weather scene to display until you return to Live Weather.</string>
+    <string name="settings_fixed_scene_label">Weather scene</string>
+    <string name="settings_fixed_scene_apply">Use fixed scene</string>
+    <string name="settings_display_title">Display</string>
+    <string name="settings_display_summary">Choose the information and motion shown on the wallpaper.</string>
+    <string name="settings_appearance_title">Appearance</string>
+    <string name="settings_appearance_summary">Control textures, lighting, and legacy visual behavior.</string>
+    <string name="settings_performance_summary">Balance frame rate, animation timing, and power use.</string>
+    <string name="settings_about_title">About</string>
+    <string name="settings_about_summary">Project and weather data attribution.</string>
+    <string name="settings_privacy_title">Privacy</string>
+    <string name="settings_privacy_summary">Manage approximate-location access and review how weather data is handled.</string>
+    <string name="settings_diagnostics_title">Diagnostics</string>
+    <string name="settings_diagnostics_summary">Show the current weather inputs used by the renderer.</string>
+    <string name="settings_location_disclosure_privacy_link">Read the Privacy Policy</string>
 </resources>

@@ -12,20 +12,20 @@
   <aside>Windy Weather Revived is an independent, unofficial open-source project. It is not affiliated with, endorsed by, or sponsored by Samsung Electronics. Samsung and related product names are trademarks of their respective owners.</aside>
 
   <h2>Optional approximate location weather</h2>
-  <p>Location weather is off by default. If you accept the in-app disclosure and grant Android's approximate location permission, Windy Weather rounds latitude and longitude to two decimal places and sends them over HTTPS to Open-Meteo for local weather. This may occur when you refresh and during the automatic refresh interval you select. Open-Meteo may retain coordinate-bearing API logs for up to 90 days.</p>
-  <p>The Google Play build calculates moon phase on the device. The separately installable GitHub build may also send the same rounded coordinates over HTTPS to the United States Naval Observatory (USNO) to request moon information. No location transfer occurs before consent.</p>
+  <p>Location weather is off by default. If you accept the in-app disclosure and grant Android's approximate location permission, Windy Weather rounds latitude and longitude to two decimal places. It sends those rounded coordinates over HTTPS to Open-Meteo for local weather and passes them to the Android system geocoding service configured on your device to determine the place name shown by the wallpaper. The system geocoding provider may process this request off-device under the provider's terms. These requests may occur when you refresh and during the automatic refresh interval you select. Open-Meteo may retain coordinate-bearing API logs for up to 90 days.</p>
+  <p>The Google Play build calculates moon phase on the device. The separately installable GitHub build may also send the same rounded coordinates over HTTPS to the United States Naval Observatory (USNO) to request moon information. Open-Meteo, the Android system geocoding service, and, for the GitHub build only, USNO receive no location from Windy Weather before consent.</p>
 
   <h2>Samsung device weather and AeroWeather</h2>
   <p>On compatible Samsung devices, the optional experimental Samsung weather integration reads local device weather-provider data. It is not shown or queried on other manufacturers' devices. AeroWeather synchronization exists only in the GitHub build and is local to the device. These integrations do not send Samsung or AeroWeather provider data to the developer. Open-Meteo and, in the GitHub build, USNO remain the disclosed weather services.</p>
 
   <h2>Local storage and withdrawal</h2>
-  <p>Rounded coordinates and the weather and city cache remain private app data on the device until you turn off “Use approximate location for weather,” clear app data, or uninstall the app. Turning the switch off immediately blocks manual, scheduled, reconnect, fallback, and moon-information transfers and clears the location-derived cache.</p>
+  <p>Rounded coordinates and the weather cache remain private app data on the device until you turn off “Use approximate location for weather,” clear app data, or uninstall the app. A successfully resolved place name is cached only for the exact rounded-coordinate pair that produced it. Turning the switch off immediately blocks manual, scheduled, reconnect, fallback, geocoding, and moon-information transfers and clears the location-derived cache.</p>
 
   <h2>Data we do not collect</h2>
   <p>Windy Weather has no accounts, advertising, analytics, health data, audio collection, race or ethnicity data, or transmission of the installed-app list. Performance and debug information remains on the device.</p>
 
   <h2>Attribution and service terms</h2>
-  <p>Weather data is provided by <a href="https://open-meteo.com/">Open-Meteo</a> under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. The app is permanently free and ad-free and uses Open-Meteo under its <a href="https://open-meteo.com/en/terms">non-commercial terms and privacy policy</a>.</p>
+  <p>Weather data is provided by <a href="https://open-meteo.com/">Open-Meteo</a> under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. The app is permanently free and ad-free and uses Open-Meteo under its <a href="https://open-meteo.com/en/terms">non-commercial terms and privacy policy</a>. Place names come from the Android system geocoding service available on the device. The GitHub distribution's optional moon-information recipient is USNO.</p>
 
   <h2>Contact</h2>
   <p>Questions or privacy requests can be filed publicly through <a href="https://github.com/BalancedLight/Windy-Weather-Revived/issues">GitHub Issues</a>. There is no remote deletion service because the app has no account or developer-hosted user record; withdrawing consent clears app-local location-derived data.</p>
