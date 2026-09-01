@@ -4,7 +4,7 @@
     alt="Windy Weather Revived banner with two wind turbines against a bright blue sky with clouds and the sun." />
 </p>
 <p align="center">
-Windy Weather Revived is a revival and rebuild of the old Samsung S3 secret live wallpaper service for modern smartphones. It's built with Open-Meteo compatibility and experimental Samsung weather integration. 
+Windy Weather Revived is a revival and rebuild of the old Samsung Galaxy S2/S3 secret live wallpaper service for modern smartphones. It's built with Open-Meteo compatibility and experimental Samsung weather integration. 
 This project contains small fixes and improvements to the original, including a full port to Kotlin, all while keeping original features intact for those who want nothing changed.
 </p>
 
