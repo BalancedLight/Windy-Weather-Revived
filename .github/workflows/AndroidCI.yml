@@ -51,6 +51,20 @@ jobs:
           test -s "$r8_dir/resources.txt"
           test -s "$r8_dir/usage.txt"
 
+          distribution="${{ matrix.distribution }}"
+          release_variant="${distribution}Release"
+          task_variant="${distribution^}Release"
+          shrunk_resources="app/build/intermediates/shrunk_resources_proto_format/${release_variant}/minify${task_variant}WithR8/shrunk-resources-proto-format-${distribution}-release.ap_"
+          test -s "$shrunk_resources"
+
+          # Legacy textures are resolved dynamically as <base>_lq, so R8 cannot infer their use.
+          source_legacy_textures="$(mktemp)"
+          shrunk_legacy_textures="$(mktemp)"
+          find app/res -type f -path '*/drawable*/*' -name '*_lq.*' -printf '%f\n' | sort > "$source_legacy_textures"
+          unzip -Z1 "$shrunk_resources" | sed -nE 's#^res/drawable[^/]*/([^/]+_lq\.[^/]+)$#\1#p' | sort > "$shrunk_legacy_textures"
+          test -s "$source_legacy_textures"
+          diff -u "$source_legacy_textures" "$shrunk_legacy_textures"
+
           if [[ "${{ matrix.distribution }}" == "play" ]]; then
             bundle_entries="$(unzip -Z1 app/build/outputs/bundle/playRelease/app-play-release.aab)"
             grep -Fxq 'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map' <<< "$bundle_entries"
