@@ -1,0 +1,1156 @@
+{
+  "_comment": "Mapping from the Watch Face Format weather model onto Windy Weather Revived's original scene abstractions, plus the layer recipe each Wear scene renders. Consumed by tools/wear_assets/generate.py for the QA composites and mirrored by wearWatchFace/src/main/res/raw/watchface.xml.",
+  "schema_version": 1,
+  "canvas": {
+    "width": 450,
+    "height": 450,
+    "clip_shape": "CIRCLE",
+    "reference_aspect": 0.5625,
+    "ground_parallax_offset": 1.0,
+    "horizon_y": 359
+  },
+  "wff_version": 2,
+  "condition_map": [
+    {
+      "wff_value": 0,
+      "wff_name": "UNKNOWN_VALUE",
+      "scene": "D1_CLEAR",
+      "intensity": "normal",
+      "note": "Neutral fallback, matching the mobile default of D1_CLEAR when no code is understood."
+    },
+    {
+      "wff_value": 1,
+      "wff_name": "CLEAR",
+      "scene": "D1_CLEAR",
+      "intensity": "normal",
+      "note": "Cloudless sky, sun or moon, no cloud pass."
+    },
+    {
+      "wff_value": 2,
+      "wff_name": "CLOUDY",
+      "scene": "D2_CLOUDY",
+      "intensity": "normal",
+      "note": "Full seven-pass cloud bank, sun still drawn by day as shouldDrawSunForScene() allows."
+    },
+    {
+      "wff_value": 3,
+      "wff_name": "FOG",
+      "scene": "D4_FOG",
+      "intensity": "normal",
+      "note": "Overcast day sky, nightcover at night, drifting fog wash."
+    },
+    {
+      "wff_value": 4,
+      "wff_name": "HEAVY_RAIN",
+      "scene": "D5_RAIN_SHOWERS",
+      "intensity": "heavy",
+      "note": "Both rain strips at full alpha plus the lens-water overlay."
+    },
+    {
+      "wff_value": 5,
+      "wff_name": "HEAVY_SNOW",
+      "scene": "D7_FLURRIES_SNOW",
+      "intensity": "heavy",
+      "note": "Both snow strips at full alpha; the near strip carries the e_snow_04 clumps."
+    },
+    {
+      "wff_value": 6,
+      "wff_name": "RAIN",
+      "scene": "D5_RAIN_SHOWERS",
+      "intensity": "normal",
+      "note": "Both rain strips at the standard alpha."
+    },
+    {
+      "wff_value": 7,
+      "wff_name": "SNOW",
+      "scene": "D7_FLURRIES_SNOW",
+      "intensity": "normal",
+      "note": "Both snow strips at the standard alpha."
+    },
+    {
+      "wff_value": 8,
+      "wff_name": "SUNNY",
+      "scene": "D1_CLEAR",
+      "intensity": "normal",
+      "note": "Same as CLEAR."
+    },
+    {
+      "wff_value": 9,
+      "wff_name": "THUNDERSTORM",
+      "scene": "D6_THUNDERSTORMS",
+      "intensity": "heavy",
+      "note": "Rain plus the sky flash, cloud glow and three bolts."
+    },
+    {
+      "wff_value": 10,
+      "wff_name": "SLEET",
+      "scene": "D9_SLEET",
+      "intensity": "normal",
+      "note": "Rain and snow together at half alpha, snowy ground, nightcover at night, frost fringe."
+    },
+    {
+      "wff_value": 11,
+      "wff_name": "LIGHT_SNOW",
+      "scene": "D7_FLURRIES_SNOW",
+      "intensity": "light",
+      "note": "Far snow strip only, reduced alpha."
+    },
+    {
+      "wff_value": 12,
+      "wff_name": "LIGHT_RAIN",
+      "scene": "D5_RAIN_SHOWERS",
+      "intensity": "light",
+      "note": "Far rain strip only, reduced alpha, no lens water."
+    },
+    {
+      "wff_value": 13,
+      "wff_name": "MIST",
+      "scene": "D3_DREARY",
+      "intensity": "light",
+      "note": "Dreary sky and ground with the fog wash at half the D4_FOG alpha, which is how the mobile renderer distinguishes haze from true fog."
+    },
+    {
+      "wff_value": 14,
+      "wff_name": "PARTLY_CLOUDY",
+      "scene": "D10_MOSTLY_CLEAR",
+      "intensity": "normal",
+      "note": "Clear sky family plus the two light cumulus passes, exactly the mostly-clear branch of loadImages()."
+    },
+    {
+      "wff_value": 15,
+      "wff_name": "WINDY",
+      "scene": "D2_CLOUDY",
+      "intensity": "windy",
+      "note": "Cloudy sky treatment with cloud drift and rotor speed raised; the mobile renderer already scales rotor speed with wind, so this is the same idea driven from the condition enum."
+    }
+  ],
+  "temperature_overlay": {
+    "_comment": "D8_ICE_COLD has no WFF condition enum, so it is recreated from temperature instead. Thresholds are compared per unit because [WEATHER.TEMPERATURE] is reported in the user's preferred unit and [WEATHER.TEMPERATURE_UNIT] is 1 for Celsius and 2 for Fahrenheit.",
+    "source_scene": "D8_ICE_COLD",
+    "freezing": {
+      "celsius": 0,
+      "fahrenheit": 32
+    },
+    "deep_cold": {
+      "celsius": -8,
+      "fahrenheit": 18
+    },
+    "effect": "overlay_frost fades in at freezing and reaches full strength at the deep-cold threshold",
+    "expression": "([WEATHER.TEMPERATURE_UNIT] == 2) ? ([WEATHER.TEMPERATURE] < 32) : ([WEATHER.TEMPERATURE] < 0)"
+  },
+  "availability": {
+    "never_available": "WEATHER.IS_AVAILABLE false: render the neutral D1_CLEAR scene with day/night taken from the clock hour, the full clock, and a small unavailable dot.",
+    "stale_but_available": "WEATHER.IS_AVAILABLE true and WEATHER.IS_ERROR true: keep rendering the last known scene and show the same small indicator dot.",
+    "healthy": "WEATHER.IS_AVAILABLE true and WEATHER.IS_ERROR false: render normally with no indicator."
+  },
+  "day_night": {
+    "source": "[WEATHER.IS_DAY]",
+    "fallback": "[HOUR_0_23] >= 7 && [HOUR_0_23] < 19, used only when weather has never been available",
+    "controls": [
+      "sky",
+      "cloud sprite set",
+      "sun or moon",
+      "landscape set",
+      "lawn set",
+      "windmill tint",
+      "nightcover",
+      "starfield",
+      "clock contrast"
+    ]
+  },
+  "scenes": {
+    "D1_CLEAR": {
+      "sky": {
+        "day": "bg_sky_clear_day",
+        "night": "bg_sky_clear_night"
+      },
+      "ground_set": {
+        "day": "green_day",
+        "night": "night"
+      },
+      "nightcover": false,
+      "starfield": "night",
+      "celestial": {
+        "day": "sun",
+        "night": "moon"
+      },
+      "clouds": [],
+      "precipitation": [],
+      "overlays": []
+    },
+    "D10_MOSTLY_CLEAR": {
+      "sky": {
+        "day": "bg_sky_clear_day",
+        "night": "bg_sky_clear_night"
+      },
+      "ground_set": {
+        "day": "green_day",
+        "night": "night"
+      },
+      "nightcover": false,
+      "starfield": "night",
+      "celestial": {
+        "day": "sun",
+        "night": "moon"
+      },
+      "clouds": [
+        {
+          "day": "cloud_a_light",
+          "night": "cloud_a_grey",
+          "alpha_day": 0.3,
+          "alpha_night": 0.45
+        },
+        {
+          "day": "cloud_b_light",
+          "night": "cloud_b_grey",
+          "alpha_day": 0.45,
+          "alpha_night": 0.6
+        }
+      ],
+      "precipitation": [],
+      "overlays": []
+    },
+    "D2_CLOUDY": {
+      "sky": {
+        "day": "bg_sky_clear_day",
+        "night": "bg_sky_clear_night"
+      },
+      "ground_set": {
+        "day": "overcast_day",
+        "night": "night"
+      },
+      "nightcover": false,
+      "starfield": "none",
+      "celestial": {
+        "day": "sun",
+        "night": "none"
+      },
+      "clouds": [
+        {
+          "day": "cloud_a_day",
+          "night": "cloud_a_night",
+          "alpha_day": 0.9,
+          "alpha_night": 0.25
+        },
+        {
+          "day": "cloud_b_day",
+          "night": "cloud_b_night",
+          "alpha_day": 0.5,
+          "alpha_night": 0.25
+        }
+      ],
+      "precipitation": [],
+      "overlays": []
+    },
+    "D3_DREARY": {
+      "sky": {
+        "day": "bg_sky_overcast_day",
+        "night": "bg_sky_overcast_night"
+      },
+      "ground_set": {
+        "day": "overcast_day",
+        "night": "night"
+      },
+      "nightcover": true,
+      "starfield": "none",
+      "celestial": {
+        "day": "none",
+        "night": "none"
+      },
+      "clouds": [
+        {
+          "day": "cloud_a_grey",
+          "night": "cloud_a_grey",
+          "alpha_day": 0.9,
+          "alpha_night": 0.25
+        },
+        {
+          "day": "cloud_b_grey",
+          "night": "cloud_b_grey",
+          "alpha_day": 0.5,
+          "alpha_night": 0.25
+        }
+      ],
+      "precipitation": [],
+      "overlays": [
+        "fog_half"
+      ]
+    },
+    "D4_FOG": {
+      "sky": {
+        "day": "bg_sky_overcast_day",
+        "night": "bg_sky_clear_night"
+      },
+      "ground_set": {
+        "day": "overcast_day",
+        "night": "night"
+      },
+      "nightcover": true,
+      "starfield": "none",
+      "celestial": {
+        "day": "none",
+        "night": "none"
+      },
+      "clouds": [
+        {
+          "day": "cloud_a_grey",
+          "night": "cloud_a_grey",
+          "alpha_day": 0.9,
+          "alpha_night": 0.25
+        },
+        {
+          "day": "cloud_b_grey",
+          "night": "cloud_b_grey",
+          "alpha_day": 0.5,
+          "alpha_night": 0.25
+        }
+      ],
+      "precipitation": [],
+      "overlays": [
+        "fog"
+      ]
+    },
+    "D5_RAIN_SHOWERS": {
+      "sky": {
+        "day": "bg_sky_overcast_day",
+        "night": "bg_sky_overcast_night"
+      },
+      "ground_set": {
+        "day": "green_day",
+        "night": "night"
+      },
+      "nightcover": true,
+      "starfield": "none",
+      "celestial": {
+        "day": "none",
+        "night": "none"
+      },
+      "clouds": [
+        {
+          "day": "cloud_a_day",
+          "night": "cloud_a_night",
+          "alpha_day": 0.9,
+          "alpha_night": 0.25
+        },
+        {
+          "day": "cloud_b_day",
+          "night": "cloud_b_night",
+          "alpha_day": 0.5,
+          "alpha_night": 0.25
+        }
+      ],
+      "precipitation": [
+        "rain_far",
+        "rain_near"
+      ],
+      "overlays": [
+        "waterdrop"
+      ]
+    },
+    "D6_THUNDERSTORMS": {
+      "sky": {
+        "day": "bg_sky_overcast_day",
+        "night": "bg_sky_overcast_night"
+      },
+      "ground_set": {
+        "day": "overcast_day",
+        "night": "night"
+      },
+      "nightcover": true,
+      "starfield": "none",
+      "celestial": {
+        "day": "none",
+        "night": "none"
+      },
+      "clouds": [
+        {
+          "day": "cloud_a_day",
+          "night": "cloud_a_night",
+          "alpha_day": 0.9,
+          "alpha_night": 0.25
+        },
+        {
+          "day": "cloud_b_day",
+          "night": "cloud_b_night",
+          "alpha_day": 0.5,
+          "alpha_night": 0.25
+        }
+      ],
+      "precipitation": [
+        "rain_far",
+        "rain_near"
+      ],
+      "overlays": [
+        "waterdrop",
+        "storm"
+      ]
+    },
+    "D7_FLURRIES_SNOW": {
+      "sky": {
+        "day": "bg_sky_overcast_day",
+        "night": "bg_sky_overcast_night"
+      },
+      "ground_set": {
+        "day": "snow_day",
+        "night": "snow_night"
+      },
+      "nightcover": false,
+      "starfield": "none",
+      "celestial": {
+        "day": "none",
+        "night": "none"
+      },
+      "clouds": [
+        {
+          "day": "cloud_a_day",
+          "night": "cloud_a_night",
+          "alpha_day": 0.9,
+          "alpha_night": 0.25
+        },
+        {
+          "day": "cloud_b_day",
+          "night": "cloud_b_night",
+          "alpha_day": 0.5,
+          "alpha_night": 0.25
+        }
+      ],
+      "precipitation": [
+        "snow_far",
+        "snow_near"
+      ],
+      "overlays": [
+        "frost"
+      ]
+    },
+    "D8_ICE_COLD": {
+      "sky": {
+        "day": "bg_sky_clear_day",
+        "night": "bg_sky_clear_night"
+      },
+      "ground_set": {
+        "day": "overcast_day",
+        "night": "night"
+      },
+      "nightcover": false,
+      "starfield": "night",
+      "celestial": {
+        "day": "sun",
+        "night": "moon"
+      },
+      "clouds": [
+        {
+          "day": "cloud_a_day",
+          "night": "cloud_a_night",
+          "alpha_day": 0.9,
+          "alpha_night": 0.25
+        },
+        {
+          "day": "cloud_b_day",
+          "night": "cloud_b_night",
+          "alpha_day": 0.5,
+          "alpha_night": 0.25
+        }
+      ],
+      "precipitation": [],
+      "overlays": [
+        "frost"
+      ],
+      "note": "Not selected by any WFF condition. Reached as a temperature overlay: the frost fringe is composited over whichever scene the condition chose."
+    },
+    "D9_SLEET": {
+      "sky": {
+        "day": "bg_sky_overcast_day",
+        "night": "bg_sky_overcast_night"
+      },
+      "ground_set": {
+        "day": "snow_day",
+        "night": "snow_night"
+      },
+      "nightcover": true,
+      "starfield": "none",
+      "celestial": {
+        "day": "none",
+        "night": "none"
+      },
+      "clouds": [
+        {
+          "day": "cloud_a_day",
+          "night": "cloud_a_night",
+          "alpha_day": 0.9,
+          "alpha_night": 0.25
+        },
+        {
+          "day": "cloud_b_day",
+          "night": "cloud_b_night",
+          "alpha_day": 0.5,
+          "alpha_night": 0.25
+        }
+      ],
+      "precipitation": [
+        "rain_far",
+        "snow_far",
+        "snow_near"
+      ],
+      "overlays": [
+        "waterdrop",
+        "frost"
+      ]
+    }
+  },
+  "ground_sets": {
+    "green_day": {
+      "far": "land_far_day",
+      "near": "land_near_green_day",
+      "lawn": "lawn_green_day"
+    },
+    "overcast_day": {
+      "far": "land_far_day",
+      "near": "land_near_overcast_day",
+      "lawn": "lawn_overcast_day"
+    },
+    "snow_day": {
+      "far": "land_far_snow_day",
+      "near": "land_near_snow_day",
+      "lawn": "lawn_snow_day"
+    },
+    "night": {
+      "far": "land_far_night",
+      "near": "land_near_night",
+      "lawn": "lawn_night"
+    },
+    "snow_night": {
+      "far": "land_far_snow_night",
+      "near": "land_near_snow_night",
+      "lawn": "lawn_snow_night"
+    }
+  },
+  "layout": {
+    "sky": {
+      "x": 0,
+      "y": 0,
+      "width": 451,
+      "height": 451
+    },
+    "nightcover": {
+      "x": 0,
+      "y": 0,
+      "width": 451,
+      "height": 451
+    },
+    "starfield": {
+      "x": 0,
+      "y": 0,
+      "width": 451,
+      "height": 115
+    },
+    "star_twinkles": [
+      {
+        "x": 318,
+        "y": 80,
+        "width": 55,
+        "height": 55
+      },
+      {
+        "x": 225,
+        "y": 111,
+        "width": 55,
+        "height": 55
+      },
+      {
+        "x": 331,
+        "y": 162,
+        "width": 44,
+        "height": 44
+      },
+      {
+        "x": 232,
+        "y": 163,
+        "width": 55,
+        "height": 55
+      },
+      {
+        "x": 134,
+        "y": 110,
+        "width": 44,
+        "height": 44
+      },
+      {
+        "x": 79,
+        "y": 93,
+        "width": 44,
+        "height": 44
+      },
+      {
+        "x": 25,
+        "y": 101,
+        "width": 55,
+        "height": 55
+      }
+    ],
+    "frost": {
+      "x": 0,
+      "y": 0,
+      "width": 450,
+      "height": 450
+    },
+    "waterdrop": {
+      "x": 0,
+      "y": 0,
+      "width": 450,
+      "height": 450
+    },
+    "clock_positions": {
+      "top": {
+        "scrim": {
+          "x": 0,
+          "y": 0,
+          "width": 450,
+          "height": 232,
+          "angle": 0
+        },
+        "time": {
+          "x": 25,
+          "y": 62,
+          "width": 400,
+          "height": 88
+        },
+        "date": {
+          "x": 75,
+          "y": 152,
+          "width": 300,
+          "height": 26
+        },
+        "temperature": {
+          "x": 125,
+          "y": 182,
+          "width": 200,
+          "height": 32
+        },
+        "condition": {
+          "x": 75,
+          "y": 216,
+          "width": 300,
+          "height": 22
+        },
+        "fonts": {
+          "time": 66,
+          "date": 20,
+          "temperature": 26,
+          "condition": 17
+        }
+      },
+      "center": {
+        "scrim": null,
+        "condition": {
+          "x": 75,
+          "y": 152,
+          "width": 300,
+          "height": 22
+        },
+        "date": {
+          "x": 75,
+          "y": 178,
+          "width": 300,
+          "height": 26
+        },
+        "time": {
+          "x": 25,
+          "y": 207,
+          "width": 400,
+          "height": 88
+        },
+        "temperature": {
+          "x": 125,
+          "y": 299,
+          "width": 200,
+          "height": 32
+        },
+        "fonts": {
+          "time": 66,
+          "date": 20,
+          "temperature": 26,
+          "condition": 17
+        }
+      },
+      "bottom": {
+        "scrim": {
+          "x": 0,
+          "y": 218,
+          "width": 450,
+          "height": 232,
+          "angle": 180
+        },
+        "condition": {
+          "x": 75,
+          "y": 188,
+          "width": 300,
+          "height": 22
+        },
+        "date": {
+          "x": 75,
+          "y": 214,
+          "width": 300,
+          "height": 26
+        },
+        "time": {
+          "x": 25,
+          "y": 243,
+          "width": 400,
+          "height": 88
+        },
+        "temperature": {
+          "x": 125,
+          "y": 335,
+          "width": 200,
+          "height": 32
+        },
+        "fonts": {
+          "time": 66,
+          "date": 20,
+          "temperature": 26,
+          "condition": 17
+        }
+      },
+      "left": {
+        "scrim": {
+          "x": -109,
+          "y": 109,
+          "width": 450,
+          "height": 232,
+          "angle": 270
+        },
+        "date": {
+          "x": 10,
+          "y": 152,
+          "width": 220,
+          "height": 24
+        },
+        "time": {
+          "x": 10,
+          "y": 181,
+          "width": 220,
+          "height": 72
+        },
+        "temperature": {
+          "x": 10,
+          "y": 255,
+          "width": 220,
+          "height": 28
+        },
+        "condition": {
+          "x": 10,
+          "y": 283,
+          "width": 220,
+          "height": 20
+        },
+        "fonts": {
+          "time": 54,
+          "date": 18,
+          "temperature": 22,
+          "condition": 15
+        }
+      },
+      "right": {
+        "scrim": {
+          "x": 109,
+          "y": 109,
+          "width": 450,
+          "height": 232,
+          "angle": 90
+        },
+        "date": {
+          "x": 220,
+          "y": 152,
+          "width": 220,
+          "height": 24
+        },
+        "time": {
+          "x": 220,
+          "y": 181,
+          "width": 220,
+          "height": 72
+        },
+        "temperature": {
+          "x": 220,
+          "y": 255,
+          "width": 220,
+          "height": 28
+        },
+        "condition": {
+          "x": 220,
+          "y": 283,
+          "width": 220,
+          "height": 20
+        },
+        "fonts": {
+          "time": 54,
+          "date": 18,
+          "temperature": 22,
+          "condition": 15
+        }
+      }
+    },
+    "default_clock_position": "top",
+    "land_far": {
+      "x": -26,
+      "y": 350,
+      "width": 502,
+      "height": 101
+    },
+    "land_near": {
+      "x": -27,
+      "y": 359,
+      "width": 503,
+      "height": 91
+    },
+    "lawn": {
+      "x": -26,
+      "y": 364,
+      "width": 502,
+      "height": 84
+    },
+    "windmills": [
+      {
+        "index": 11,
+        "distance": 2,
+        "gyro": 3.0,
+        "alpha": 230,
+        "angle_offset": 90.0,
+        "rotor_asset": "wm_rotor_blur",
+        "tower_asset": "wm_tower_far",
+        "rotor": {
+          "x": 171,
+          "y": 337,
+          "width": 30,
+          "height": 30
+        },
+        "tower": {
+          "x": 183,
+          "y": 351,
+          "width": 3,
+          "height": 33
+        }
+      },
+      {
+        "index": 12,
+        "distance": 2,
+        "gyro": 3.0,
+        "alpha": 230,
+        "angle_offset": 120.0,
+        "rotor_asset": "wm_rotor_blur",
+        "tower_asset": "wm_tower_far",
+        "rotor": {
+          "x": 287,
+          "y": 333,
+          "width": 30,
+          "height": 30
+        },
+        "tower": {
+          "x": 300,
+          "y": 348,
+          "width": 3,
+          "height": 33
+        }
+      },
+      {
+        "index": 5,
+        "distance": 1,
+        "gyro": 7.5,
+        "alpha": 255,
+        "angle_offset": 30.0,
+        "rotor_asset": "wm_rotor_blur",
+        "tower_asset": "wm_tower_far",
+        "rotor": {
+          "x": 19,
+          "y": 304,
+          "width": 59,
+          "height": 59
+        },
+        "tower": {
+          "x": 45,
+          "y": 333,
+          "width": 6,
+          "height": 64
+        }
+      },
+      {
+        "index": 6,
+        "distance": 1,
+        "gyro": 7.5,
+        "alpha": 255,
+        "angle_offset": 60.0,
+        "rotor_asset": "wm_rotor_blur",
+        "tower_asset": "wm_tower_far",
+        "rotor": {
+          "x": 165,
+          "y": 312,
+          "width": 47,
+          "height": 47
+        },
+        "tower": {
+          "x": 186,
+          "y": 333,
+          "width": 5,
+          "height": 51
+        }
+      },
+      {
+        "index": 7,
+        "distance": 1,
+        "gyro": 7.5,
+        "alpha": 255,
+        "angle_offset": 90.0,
+        "rotor_asset": "wm_rotor_blur",
+        "tower_asset": "wm_tower_far",
+        "rotor": {
+          "x": 334,
+          "y": 312,
+          "width": 47,
+          "height": 47
+        },
+        "tower": {
+          "x": 354,
+          "y": 333,
+          "width": 5,
+          "height": 51
+        }
+      },
+      {
+        "index": 1,
+        "distance": 0,
+        "gyro": 18.0,
+        "alpha": 230,
+        "angle_offset": 30.0,
+        "rotor_asset": "wm_rotor",
+        "tower_asset": "wm_tower",
+        "rotor": {
+          "x": 5,
+          "y": 207,
+          "width": 142,
+          "height": 142
+        },
+        "tower": {
+          "x": 64,
+          "y": 276,
+          "width": 12,
+          "height": 135
+        },
+        "hub": {
+          "x": 72,
+          "y": 273,
+          "width": 9,
+          "height": 9
+        }
+      },
+      {
+        "index": 2,
+        "distance": 0,
+        "gyro": 18.0,
+        "alpha": 255,
+        "angle_offset": 60.0,
+        "rotor_asset": "wm_rotor",
+        "tower_asset": "wm_tower",
+        "rotor": {
+          "x": 39,
+          "y": -19,
+          "width": 304,
+          "height": 304
+        },
+        "tower": {
+          "x": 165,
+          "y": 128,
+          "width": 27,
+          "height": 290
+        },
+        "hub": {
+          "x": 182,
+          "y": 123,
+          "width": 20,
+          "height": 20
+        }
+      }
+    ],
+    "sun_rays": {
+      "x": 94,
+      "y": -151,
+      "width": 504,
+      "height": 504
+    },
+    "sun_core": {
+      "x": 70,
+      "y": 0,
+      "width": 380,
+      "height": 377
+    },
+    "sun_flare": {
+      "x": 0,
+      "y": 0,
+      "width": 450,
+      "height": 450
+    },
+    "moon": {
+      "x": 304,
+      "y": 46,
+      "width": 93,
+      "height": 93
+    },
+    "clouds": {
+      "a_overcast": {
+        "x": 32,
+        "y": 71,
+        "width": 389,
+        "height": 182,
+        "drift": 216
+      },
+      "b_overcast": {
+        "x": 28,
+        "y": 21,
+        "width": 390,
+        "height": 177,
+        "drift": 144
+      },
+      "a_light": {
+        "x": 29,
+        "y": -21,
+        "width": 397,
+        "height": 185,
+        "drift": 216
+      },
+      "b_light": {
+        "x": 17,
+        "y": 260,
+        "width": 411,
+        "height": 163,
+        "drift": 144
+      }
+    },
+    "rain": {
+      "x": 0,
+      "y": 0,
+      "width": 450,
+      "height": 450
+    },
+    "snow": {
+      "x": 0,
+      "y": 0,
+      "width": 450,
+      "height": 900
+    },
+    "fog": {
+      "x": 0,
+      "y": 0,
+      "width": 900,
+      "height": 450
+    },
+    "storm_flash": {
+      "x": -1,
+      "y": 0,
+      "width": 452,
+      "height": 451
+    },
+    "storm_glow": {
+      "width": 107,
+      "height": 44,
+      "x": 152,
+      "y": 26
+    },
+    "storm_bolts": [
+      {
+        "x": 171,
+        "y": -71,
+        "width": 366,
+        "height": 368,
+        "key": "storm_bolt_a",
+        "element": "stormBoltA"
+      },
+      {
+        "x": 73,
+        "y": -50,
+        "width": 297,
+        "height": 297,
+        "key": "storm_bolt_b",
+        "element": "stormBoltB"
+      },
+      {
+        "x": 292,
+        "y": -47,
+        "width": 256,
+        "height": 247,
+        "key": "storm_bolt_c",
+        "element": "stormBoltC"
+      }
+    ],
+    "logo": {
+      "x": 170,
+      "y": 420,
+      "width": 110,
+      "height": 26
+    },
+    "weather_error_dot": {
+      "x": 218,
+      "y": 398,
+      "width": 14,
+      "height": 14
+    },
+    "complication_left": {
+      "x": 98,
+      "y": 374,
+      "width": 52,
+      "height": 52
+    },
+    "complication_right": {
+      "x": 300,
+      "y": 374,
+      "width": 52,
+      "height": 52
+    },
+    "ambient_rotor": {
+      "x": 150,
+      "y": 225,
+      "width": 150,
+      "height": 150
+    },
+    "ambient_tower": {
+      "x": 213,
+      "y": 298,
+      "width": 13,
+      "height": 143
+    }
+  },
+  "animation": {
+    "rotor": "angle = [SECOND_MILLISECOND] * 24 * speed, which is an exact multiple of 360 per minute so the rotation never jumps at the minute boundary",
+    "cloud_drift": "x = -width + fract([SECONDS_IN_DAY] / drift_seconds) * (450 + width)",
+    "precipitation": "y = (fract([SECOND_MILLISECOND] / period) * 450) - 450 on a 450x900 vertically seamless strip; every period divides 60 exactly",
+    "fog_drift": "x = -450 + fract([SECONDS_IN_DAY] / 96) * 450 on a 900x450 horizontally seamless strip",
+    "twinkle": "alpha = triangle wave built from fract() and abs(); no trigonometry so the result does not depend on whether sin() takes degrees or radians",
+    "storm": "flash and bolt alpha are sawtooth pulses on a four-second cycle, offset per bolt",
+    "parallax": "Gyro x/y on the scene group, clamped to plus or minus 6 logical pixels for the sky and plus or minus 10 for the ground"
+  },
+  "ambient": {
+    "background": "#ff000000",
+    "kept": [
+      "hour and minute",
+      "date",
+      "windmill silhouette outline"
+    ],
+    "removed": [
+      "sky",
+      "clouds",
+      "sun",
+      "moon",
+      "stars",
+      "landscape fill",
+      "lawn",
+      "all precipitation",
+      "fog",
+      "frost",
+      "lens water",
+      "storm",
+      "gyro parallax",
+      "rotor rotation",
+      "temperature",
+      "condition text",
+      "logo"
+    ]
+  }
+}

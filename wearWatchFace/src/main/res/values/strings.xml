@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Windy Weather Revived</string>
+
+    <string name="cfg_temperature">Show temperature</string>
+    <string name="cfg_condition">Show condition</string>
+    <string name="cfg_branding">Windy branding</string>
+    <string name="cfg_clock_position">Clock position</string>
+    <string name="cfg_clock_top">Top</string>
+    <string name="cfg_clock_center">Center</string>
+    <string name="cfg_clock_bottom">Bottom</string>
+    <string name="cfg_clock_left">Left</string>
+    <string name="cfg_clock_right">Right</string>
+    <string name="cfg_clock_colour">Clock appearance</string>
+    <string name="cfg_clock_light">Light</string>
+    <string name="cfg_clock_dark">Dark</string>
+
+    <string name="flavor_classic">Classic</string>
+    <string name="flavor_informative">Informative</string>
+    <string name="flavor_minimal">Minimal</string>
+
+    <string name="sr_complication_left">Left complication</string>
+    <string name="sr_complication_right">Right complication</string>
+    <string name="sr_scene">Windy Weather scene</string>
+    <string name="sr_temperature">Show the current temperature under the clock</string>
+    <string name="sr_condition">Show the weather condition name</string>
+    <string name="sr_branding">Show the Windy Weather watermark</string>
+    <string name="sr_clock_top">Clock at the top of the face</string>
+    <string name="sr_clock_center">Clock in the centre of the face</string>
+    <string name="sr_clock_bottom">Clock at the bottom of the face</string>
+    <string name="sr_clock_left">Clock on the left of the face</string>
+    <string name="sr_clock_right">Clock on the right of the face</string>
+</resources>

@@ -23,3 +23,16 @@ WeatherWallOriginal.zip
 keystore.properties
 signing.properties
 app/play/
+
+# Wear OS tooling downloaded on demand by tools/wear_assets/fetch_wff_tools.sh
+tools/wff/*.jar
+tools/wff/*.zip
+tools/wff/xsd/
+
+__pycache__/
+*.py[cod]
+
+# Wear QA composites: only the contact sheets are committed. The individual
+# scene and clock-position frames regenerate with tools/wear_assets/generate.py
+wear/generated-preview/*
+!wear/generated-preview/contact_sheet_*.png

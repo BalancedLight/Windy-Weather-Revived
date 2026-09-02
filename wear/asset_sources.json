@@ -1,0 +1,1332 @@
+{
+  "_comment": "Audit of every mobile source graphic that the Wear OS watch face derives from. Traced from SecretWallpaperService.CSPRenderer.loadImages() and drawObjects(), not from filenames. Read-only input to tools/wear_assets/generate.py.",
+  "schema_version": 1,
+  "source_root": "app/res/drawable-nodpi",
+  "policy": {
+    "prefer_full_resolution": true,
+    "lq_variants_excluded": true,
+    "note": "The *_lq.* siblings are the mobile low-memory tier resolved at runtime by SecretWallpaperService.resolveTextureId(). Wear derivatives always come from the full-resolution master.",
+    "framing": "Every derivative is cropped to the region the 1:1 centre crop of the phone view actually frames, and emitted at exactly the pixel size it is drawn at. tools/wear_assets/framing.py holds the projection; nothing is hand-sized."
+  },
+  "assets": [
+    {
+      "source": "sky_01.jpg",
+      "classification": "sky/background",
+      "renderer_role": "Daytime sky quad, drawn first at z=-30, translate(-1.5+skyShift, -2.3), scale(2.0, 2.0). Vertical gradient, deep blue at top to white haze at the horizon.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D2_CLOUDY",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "day",
+      "movement": "Horizontal parallax only (skyParallaxShift from the launcher page offset).",
+      "alpha": "opaque, alpha 1.0",
+      "procedural": "Superseded by SkyGradientTexture when the dynamic sky setting is on.",
+      "wear_strategy": "Crop the upper band the GL camera actually frames and resize to the full 450x450 face as an opaque background.",
+      "outputs": [
+        "bg_sky_clear_day",
+        "overlay_top_scrim"
+      ]
+    },
+    {
+      "source": "sky_02.jpg",
+      "classification": "sky/background",
+      "renderer_role": "Night sky quad for the clear and cloudy families; the star band is baked into its upper region.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D2_CLOUDY",
+        "D4_FOG",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "night",
+      "movement": "Horizontal parallax only.",
+      "alpha": "opaque, alpha 1.0",
+      "procedural": "Superseded by SkyGradientTexture plus StarFieldTexture when the dynamic sky setting is on.",
+      "wear_strategy": "Same crop as the day sky so the horizon line matches between day and night.",
+      "outputs": [
+        "bg_sky_clear_night"
+      ]
+    },
+    {
+      "source": "sky_03.png",
+      "classification": "sky/background",
+      "renderer_role": "Overcast daytime sky, used by the fog, rain, snow, sleet, dreary and thunderstorm scenes.",
+      "scenes": [
+        "D3_DREARY",
+        "D4_FOG",
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D7_FLURRIES_SNOW",
+        "D9_SLEET"
+      ],
+      "day_night": "day",
+      "movement": "Horizontal parallax only.",
+      "alpha": "opaque, alpha 1.0",
+      "procedural": "no",
+      "wear_strategy": "Same crop rectangle as the clear sky.",
+      "outputs": [
+        "bg_sky_overcast_day"
+      ]
+    },
+    {
+      "source": "sky_04.png",
+      "classification": "sky/background",
+      "renderer_role": "Overcast night sky for the rain, snow, sleet, dreary and thunderstorm scenes.",
+      "scenes": [
+        "D3_DREARY",
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D7_FLURRIES_SNOW",
+        "D9_SLEET"
+      ],
+      "day_night": "night",
+      "movement": "Horizontal parallax only.",
+      "alpha": "opaque, alpha 1.0",
+      "procedural": "no",
+      "wear_strategy": "Same crop rectangle as the clear sky.",
+      "outputs": [
+        "bg_sky_overcast_night"
+      ]
+    },
+    {
+      "source": "nightcover_01.png",
+      "classification": "night overlay",
+      "renderer_role": "Darkening wash drawn over the sky quad at night for D3/D4/D5/D6/D9, using the same transform as the sky.",
+      "scenes": [
+        "D3_DREARY",
+        "D4_FOG",
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D9_SLEET"
+      ],
+      "day_night": "night",
+      "movement": "none",
+      "alpha": "drawn at alpha 1.0; its own gradient carries the falloff",
+      "procedural": "no",
+      "wear_strategy": "Rotated to landscape, cropped to the framed band and resized to 450x450 as a translucent overlay.",
+      "outputs": [
+        "overlay_nightcover"
+      ]
+    },
+    {
+      "source": "d_sky_stars.png",
+      "classification": "sky/background",
+      "renderer_role": "Legacy star band drawn at translate(1.3+skyShift, 7.0, -29.9) scale(1.8, 0.45) on clear nights and during twilight.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "night",
+      "movement": "Horizontal parallax only.",
+      "alpha": "follows twilightStarsAlpha(); 1.0 at full night",
+      "procedural": "Superseded by the generated StarField on the mobile dynamic-sky path.",
+      "wear_strategy": "Crop the densest span of the band, stretch it across the upper sky and fade the lower edge so the band ends before the horizon.",
+      "outputs": [
+        "overlay_starfield"
+      ]
+    },
+    {
+      "source": "d_star.png",
+      "classification": "sky/background",
+      "renderer_role": "Single twinkling star sprite drawn seven times at fixed x_star/y_star positions with an alpha ramp on a 200-frame cycle.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "night",
+      "movement": "static positions, alpha animated",
+      "alpha": "0.0 to 1.0 to 0.0 over dur_star frames",
+      "procedural": "yes, the alpha ramp is computed per frame",
+      "wear_strategy": "One trimmed sprite reused by three PartImage instances whose alpha is driven by a triangle-wave Transform.",
+      "outputs": [
+        "star_twinkle"
+      ]
+    },
+    {
+      "source": "d_meteor.png",
+      "classification": "sky/background",
+      "renderer_role": "Shooting star that drifts down and left, shrinking and fading, restarted every 200 frames.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR"
+      ],
+      "day_night": "night",
+      "movement": "translate plus scale plus alpha decay per frame",
+      "alpha": "1.0 decaying by a factor of 0.9 per frame",
+      "procedural": "yes",
+      "wear_strategy": "Not reproduced.",
+      "outputs": []
+    },
+    {
+      "source": "a_sun_01.png",
+      "classification": "sun",
+      "renderer_role": "Outer flare corona, rotates at +0.54 degrees per frame around the sun position.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D2_CLOUDY",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "day",
+      "movement": "continuous rotation",
+      "alpha": "sunBrightnessForScene(); 1.0 for the clear family",
+      "procedural": "rotation only",
+      "wear_strategy": "Composited with a_sun_03 into a single rotating ray sprite so one texture carries both corona passes.",
+      "outputs": [
+        "sun_rays"
+      ]
+    },
+    {
+      "source": "a_sun_02.png",
+      "classification": "sun",
+      "renderer_role": "Bright core disc, rotates at +0.36 degrees per frame.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D2_CLOUDY",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "day",
+      "movement": "slow rotation",
+      "alpha": "sunBrightnessForScene()",
+      "procedural": "rotation only",
+      "wear_strategy": "Trimmed to its own bounds and drawn as the static sun core.",
+      "outputs": [
+        "sun_core"
+      ]
+    },
+    {
+      "source": "a_sun_03.png",
+      "classification": "sun",
+      "renderer_role": "Counter-rotating corona, -0.54 degrees per frame.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D2_CLOUDY",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "day",
+      "movement": "continuous counter-rotation",
+      "alpha": "sunBrightnessForScene()",
+      "procedural": "rotation only",
+      "wear_strategy": "Merged into sun_rays with a_sun_01; the counter-rotation is collapsed into one direction.",
+      "outputs": [
+        "sun_rays"
+      ]
+    },
+    {
+      "source": "a_sun_04.png",
+      "classification": "sun",
+      "renderer_role": "Lens-flare streak, projected onto the flare plane and played on a 200-frame swell whenever a clear scene is entered.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR"
+      ],
+      "day_night": "day",
+      "movement": "one-shot scale, rotate and fade",
+      "alpha": "square-root ramp up then down",
+      "procedural": "yes",
+      "wear_strategy": "Trimmed to the region the crop actually frames and drawn as a static streak under the sun at low alpha. The mobile renderer plays it as a one-shot swell on scene entry, which WFF cannot trigger, but at this framing the flare crosses the face and is a signature part of the look, so it is kept as a constant element.",
+      "outputs": [
+        "sun_flare"
+      ]
+    },
+    {
+      "source": "moon_00.png",
+      "classification": "moon",
+      "renderer_role": "New moon, moonResouceID indices 0 and 26.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "night",
+      "movement": "Static at (3.2, 7.0, -28.5) scale 0.3, or arced when the automatic moon path is on.",
+      "alpha": "1.0",
+      "procedural": "no",
+      "wear_strategy": "Not packaged. moon_00.png is fully transparent in the mobile artwork, which is how the renderer makes the new moon invisible; the Wear face reproduces that by holding the moon group at alpha 0 when [MOON_PHASE_TYPE] is 0, so no degenerate empty resource is shipped.",
+      "outputs": []
+    },
+    {
+      "source": "moon_01.png",
+      "classification": "moon",
+      "renderer_role": "Evening crescent, moonResouceID indices 1 to 4.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "night",
+      "movement": "see moon_00",
+      "alpha": "1.0",
+      "procedural": "no",
+      "wear_strategy": "Selected by [MOON_PHASE_TYPE] equal to 1.",
+      "outputs": [
+        "moon_p1"
+      ]
+    },
+    {
+      "source": "moon_02.png",
+      "classification": "moon",
+      "renderer_role": "First quarter, moonResouceID indices 5 to 8.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "night",
+      "movement": "see moon_00",
+      "alpha": "1.0",
+      "procedural": "no",
+      "wear_strategy": "Selected by [MOON_PHASE_TYPE] equal to 2.",
+      "outputs": [
+        "moon_p2"
+      ]
+    },
+    {
+      "source": "moon_03.png",
+      "classification": "moon",
+      "renderer_role": "Waxing gibbous, moonResouceID indices 9 to 12.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "night",
+      "movement": "see moon_00",
+      "alpha": "1.0",
+      "procedural": "no",
+      "wear_strategy": "Selected by [MOON_PHASE_TYPE] equal to 3.",
+      "outputs": [
+        "moon_p3"
+      ]
+    },
+    {
+      "source": "moon_04.png",
+      "classification": "moon",
+      "renderer_role": "Full moon, moonResouceID index 13.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "night",
+      "movement": "see moon_00",
+      "alpha": "1.0",
+      "procedural": "no",
+      "wear_strategy": "Selected by [MOON_PHASE_TYPE] equal to 4. Also the moon used in the packaged preview drawable.",
+      "outputs": [
+        "moon_p4"
+      ]
+    },
+    {
+      "source": "moon_05.png",
+      "classification": "moon",
+      "renderer_role": "Waning gibbous, moonResouceID indices 14 to 17.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "night",
+      "movement": "see moon_00",
+      "alpha": "1.0",
+      "procedural": "no",
+      "wear_strategy": "Selected by [MOON_PHASE_TYPE] equal to 5.",
+      "outputs": [
+        "moon_p5"
+      ]
+    },
+    {
+      "source": "moon_06.png",
+      "classification": "moon",
+      "renderer_role": "Last quarter, moonResouceID indices 18 to 21.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "night",
+      "movement": "see moon_00",
+      "alpha": "1.0",
+      "procedural": "no",
+      "wear_strategy": "Selected by [MOON_PHASE_TYPE] equal to 6.",
+      "outputs": [
+        "moon_p6"
+      ]
+    },
+    {
+      "source": "moon_07.png",
+      "classification": "moon",
+      "renderer_role": "Morning crescent, moonResouceID indices 22 to 25.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "night",
+      "movement": "see moon_00",
+      "alpha": "1.0",
+      "procedural": "no",
+      "wear_strategy": "Selected by [MOON_PHASE_TYPE] equal to 7.",
+      "outputs": [
+        "moon_p7"
+      ]
+    },
+    {
+      "source": "cloud_a_01.png",
+      "classification": "cloud layer",
+      "renderer_role": "Light daytime cumulus, cloud1 slot for the mostly-clear scene only.",
+      "scenes": [
+        "D10_MOSTLY_CLEAR"
+      ],
+      "day_night": "day",
+      "movement": "x drifts by -0.025 world units per frame and wraps over cloudWrapSpan",
+      "alpha": "0.30 by day",
+      "procedural": "translation only",
+      "wear_strategy": "Trimmed cumulus sprite drifting across the sky under a time-driven Transform.",
+      "outputs": [
+        "cloud_a_light"
+      ]
+    },
+    {
+      "source": "cloud_a_02.png",
+      "classification": "cloud layer",
+      "renderer_role": "Daytime overcast bank, cloud1 slot for the cloudy, ice-cold, rain, snow, sleet and thunderstorm scenes.",
+      "scenes": [
+        "D2_CLOUDY",
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D7_FLURRIES_SNOW",
+        "D8_ICE_COLD",
+        "D9_SLEET"
+      ],
+      "day_night": "day",
+      "movement": "same drift and wrap as cloud_a_01, drawn seven times at different y, scale and alpha",
+      "alpha": "0.20 to 0.90 depending on the pass",
+      "procedural": "translation only",
+      "wear_strategy": "Trimmed sprite, two drifting instances at different depths.",
+      "outputs": [
+        "cloud_a_day"
+      ]
+    },
+    {
+      "source": "cloud_a_03.png",
+      "classification": "cloud layer",
+      "renderer_role": "Heavy grey bank, cloud1 slot for dreary and fog by day and for mostly-clear by night.",
+      "scenes": [
+        "D3_DREARY",
+        "D4_FOG",
+        "D10_MOSTLY_CLEAR"
+      ],
+      "day_night": "both",
+      "movement": "same drift and wrap",
+      "alpha": "0.20 to 0.90 by day, 0.45 at night",
+      "procedural": "translation only",
+      "wear_strategy": "Trimmed sprite used for the overcast day bank and the mostly-clear night bank.",
+      "outputs": [
+        "cloud_a_grey"
+      ]
+    },
+    {
+      "source": "cloud_a_04.png",
+      "classification": "cloud layer",
+      "renderer_role": "Night bank, cloud1 slot for cloudy, rain, snow, sleet and thunderstorm nights.",
+      "scenes": [
+        "D2_CLOUDY",
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D7_FLURRIES_SNOW",
+        "D9_SLEET"
+      ],
+      "day_night": "night",
+      "movement": "same drift and wrap",
+      "alpha": "0.15 to 0.25 at night",
+      "procedural": "translation only",
+      "wear_strategy": "Trimmed sprite for all night cloud passes.",
+      "outputs": [
+        "cloud_a_night"
+      ]
+    },
+    {
+      "source": "cloud_b_01.png",
+      "classification": "cloud layer",
+      "renderer_role": "cloud2 slot partner of cloud_a_01 for the mostly-clear day scene.",
+      "scenes": [
+        "D10_MOSTLY_CLEAR"
+      ],
+      "day_night": "day",
+      "movement": "same drift and wrap on an independent offset",
+      "alpha": "0.45 by day",
+      "procedural": "translation only",
+      "wear_strategy": "Second drifting cumulus sprite.",
+      "outputs": [
+        "cloud_b_light"
+      ]
+    },
+    {
+      "source": "cloud_b_02.png",
+      "classification": "cloud layer",
+      "renderer_role": "cloud2 slot partner of cloud_a_02.",
+      "scenes": [
+        "D2_CLOUDY",
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D7_FLURRIES_SNOW",
+        "D8_ICE_COLD",
+        "D9_SLEET"
+      ],
+      "day_night": "day",
+      "movement": "same drift and wrap",
+      "alpha": "0.20 to 0.90",
+      "procedural": "translation only",
+      "wear_strategy": "Second drifting bank sprite.",
+      "outputs": [
+        "cloud_b_day"
+      ]
+    },
+    {
+      "source": "cloud_b_03.png",
+      "classification": "cloud layer",
+      "renderer_role": "cloud2 slot partner of cloud_a_03.",
+      "scenes": [
+        "D3_DREARY",
+        "D4_FOG",
+        "D10_MOSTLY_CLEAR"
+      ],
+      "day_night": "both",
+      "movement": "same drift and wrap",
+      "alpha": "0.25 to 0.50",
+      "procedural": "translation only",
+      "wear_strategy": "Second overcast and night sprite.",
+      "outputs": [
+        "cloud_b_grey"
+      ]
+    },
+    {
+      "source": "cloud_b_04.png",
+      "classification": "cloud layer",
+      "renderer_role": "cloud2 slot partner of cloud_a_04.",
+      "scenes": [
+        "D2_CLOUDY",
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D7_FLURRIES_SNOW",
+        "D9_SLEET"
+      ],
+      "day_night": "night",
+      "movement": "same drift and wrap",
+      "alpha": "0.15 to 0.25",
+      "procedural": "translation only",
+      "wear_strategy": "Second night sprite.",
+      "outputs": [
+        "cloud_b_night"
+      ]
+    },
+    {
+      "source": "cloud_a_light_01.png",
+      "classification": "lightning",
+      "renderer_role": "In-cloud flash overlay for the thunderstorm scene, drawn at the cloud_A positions on a 400-frame schedule.",
+      "scenes": [
+        "D6_THUNDERSTORMS"
+      ],
+      "day_night": "both",
+      "movement": "follows its host cloud",
+      "alpha": "random 0.6 to 1.0 rising then 0.0 to 0.4 falling",
+      "procedural": "yes",
+      "wear_strategy": "The discrete in-cloud sprites are merged into a single alpha-pulsed cloud glow.",
+      "outputs": [
+        "storm_cloud_glow"
+      ]
+    },
+    {
+      "source": "cloud_a_light_02.png",
+      "classification": "lightning",
+      "renderer_role": "Second in-cloud flash variant.",
+      "scenes": [
+        "D6_THUNDERSTORMS"
+      ],
+      "day_night": "both",
+      "movement": "follows its host cloud",
+      "alpha": "see cloud_a_light_01",
+      "procedural": "yes",
+      "wear_strategy": "Merged into storm_cloud_glow.",
+      "outputs": [
+        "storm_cloud_glow"
+      ]
+    },
+    {
+      "source": "cloud_a_light_03.png",
+      "classification": "lightning",
+      "renderer_role": "Third in-cloud flash variant.",
+      "scenes": [
+        "D6_THUNDERSTORMS"
+      ],
+      "day_night": "both",
+      "movement": "follows its host cloud",
+      "alpha": "see cloud_a_light_01",
+      "procedural": "yes",
+      "wear_strategy": "Merged into storm_cloud_glow.",
+      "outputs": [
+        "storm_cloud_glow"
+      ]
+    },
+    {
+      "source": "cloud_b_light_01.png",
+      "classification": "lightning",
+      "renderer_role": "In-cloud flash overlay for the cloud_B positions.",
+      "scenes": [
+        "D6_THUNDERSTORMS"
+      ],
+      "day_night": "both",
+      "movement": "follows its host cloud",
+      "alpha": "see cloud_a_light_01",
+      "procedural": "yes",
+      "wear_strategy": "Merged into storm_cloud_glow.",
+      "outputs": [
+        "storm_cloud_glow"
+      ]
+    },
+    {
+      "source": "cloud_b_light_02.png",
+      "classification": "lightning",
+      "renderer_role": "Second cloud_B flash variant.",
+      "scenes": [
+        "D6_THUNDERSTORMS"
+      ],
+      "day_night": "both",
+      "movement": "follows its host cloud",
+      "alpha": "see cloud_a_light_01",
+      "procedural": "yes",
+      "wear_strategy": "Merged into storm_cloud_glow.",
+      "outputs": [
+        "storm_cloud_glow"
+      ]
+    },
+    {
+      "source": "cloud_b_light_03.png",
+      "classification": "lightning",
+      "renderer_role": "Third cloud_B flash variant.",
+      "scenes": [
+        "D6_THUNDERSTORMS"
+      ],
+      "day_night": "both",
+      "movement": "follows its host cloud",
+      "alpha": "see cloud_a_light_01",
+      "procedural": "yes",
+      "wear_strategy": "Merged into storm_cloud_glow.",
+      "outputs": [
+        "storm_cloud_glow"
+      ]
+    },
+    {
+      "source": "g_sky_flash.png",
+      "classification": "lightning",
+      "renderer_role": "Full-screen white flash at translate(7.0, 0.0, -19.0), four frames up then four frames down inside each thunder event.",
+      "scenes": [
+        "D6_THUNDERSTORMS"
+      ],
+      "day_night": "both",
+      "movement": "none",
+      "alpha": "0.0 to peak to 0.0 over eight frames",
+      "procedural": "yes",
+      "wear_strategy": "Rotated to landscape, cropped and resized to a full-face wash whose alpha is a sawtooth pulse.",
+      "outputs": [
+        "storm_flash"
+      ]
+    },
+    {
+      "source": "g_lightning_01.png",
+      "classification": "lightning",
+      "renderer_role": "Bolt variant 0, drawn at a random position and scale during a thunder event.",
+      "scenes": [
+        "D6_THUNDERSTORMS"
+      ],
+      "day_night": "both",
+      "movement": "static per event",
+      "alpha": "random ramp over thunder_duration frames",
+      "procedural": "yes",
+      "wear_strategy": "Trimmed bolt sprite whose alpha is pulsed on a fixed schedule.",
+      "outputs": [
+        "storm_bolt_a"
+      ]
+    },
+    {
+      "source": "g_lightning_02.png",
+      "classification": "lightning",
+      "renderer_role": "Bolt variant 1.",
+      "scenes": [
+        "D6_THUNDERSTORMS"
+      ],
+      "day_night": "both",
+      "movement": "static per event",
+      "alpha": "see g_lightning_01",
+      "procedural": "yes",
+      "wear_strategy": "Second trimmed bolt sprite on an offset schedule.",
+      "outputs": [
+        "storm_bolt_b"
+      ]
+    },
+    {
+      "source": "g_lightning_03.png",
+      "classification": "lightning",
+      "renderer_role": "Bolt variant 2.",
+      "scenes": [
+        "D6_THUNDERSTORMS"
+      ],
+      "day_night": "both",
+      "movement": "static per event",
+      "alpha": "see g_lightning_01",
+      "procedural": "yes",
+      "wear_strategy": "Third trimmed bolt sprite on an offset schedule.",
+      "outputs": [
+        "storm_bolt_c"
+      ]
+    },
+    {
+      "source": "c_rain_01.png",
+      "classification": "rain",
+      "renderer_role": "Full-screen rain sheet, frame 0 of a three-frame cycle chosen by mFrameCnt modulo 3, at z=-20.5 scale(0.75, 1.9).",
+      "scenes": [
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D9_SLEET"
+      ],
+      "day_night": "both",
+      "movement": "frame flicker, no translation",
+      "alpha": "1.0",
+      "procedural": "frame cycling",
+      "wear_strategy": "Cropped to the window the 1:1 centre crop frames and emitted as frame 0 of a three-frame SequenceImages at 12 fps, which is the mobile renderer's own flicker cycle. Alpha is multiplied by 6 because the source peaks at 21/255 and relied on premultiplied additive blending.",
+      "outputs": [
+        "fx_rain_f0"
+      ]
+    },
+    {
+      "source": "c_rain_02.png",
+      "classification": "rain",
+      "renderer_role": "Frame 1 of the rain cycle.",
+      "scenes": [
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D9_SLEET"
+      ],
+      "day_night": "both",
+      "movement": "frame flicker",
+      "alpha": "1.0",
+      "procedural": "frame cycling",
+      "wear_strategy": "Frame 1 of the same three-frame sequence; see c_rain_01.png.",
+      "outputs": [
+        "fx_rain_f1"
+      ]
+    },
+    {
+      "source": "c_rain_03.png",
+      "classification": "rain",
+      "renderer_role": "Frame 2 of the rain cycle.",
+      "scenes": [
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D9_SLEET"
+      ],
+      "day_night": "both",
+      "movement": "frame flicker",
+      "alpha": "1.0",
+      "procedural": "frame cycling",
+      "wear_strategy": "Frame 2 of the same three-frame sequence; see c_rain_01.png.",
+      "outputs": [
+        "fx_rain_f2"
+      ]
+    },
+    {
+      "source": "c_waterdrop.png",
+      "classification": "water/humidity effect",
+      "renderer_role": "Static lens-water overlay at z=-20 drawn above the rain sheet for rain, sleet and, unless suppressed, thunderstorms, and for the legacy high-humidity overlay.",
+      "scenes": [
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D9_SLEET"
+      ],
+      "day_night": "both",
+      "movement": "none",
+      "alpha": "1.0",
+      "procedural": "no",
+      "wear_strategy": "Rotated to landscape, cropped and resized to a full-face overlay held at low alpha so it reads as beading rather than smearing the small display.",
+      "outputs": [
+        "overlay_waterdrop"
+      ]
+    },
+    {
+      "source": "e_snow_01.png",
+      "classification": "snow",
+      "renderer_role": "Large near flake, five instances, rotating at 0.225 degrees per frame and falling until y is less than -8.",
+      "scenes": [
+        "D7_FLURRIES_SNOW",
+        "D9_SLEET"
+      ],
+      "day_night": "both",
+      "movement": "fall and rotate, respawn at the top",
+      "alpha": "scale_snow1, halved for sleet",
+      "procedural": "yes",
+      "wear_strategy": "Scattered into the near seamless snow strip.",
+      "outputs": [
+        "fx_snow_near"
+      ]
+    },
+    {
+      "source": "e_snow_02.png",
+      "classification": "snow",
+      "renderer_role": "Mid flake, seventy instances.",
+      "scenes": [
+        "D7_FLURRIES_SNOW",
+        "D9_SLEET"
+      ],
+      "day_night": "both",
+      "movement": "fall, respawn at the top",
+      "alpha": "scale_snow2, halved for sleet",
+      "procedural": "yes",
+      "wear_strategy": "Scattered into both snow strips.",
+      "outputs": [
+        "fx_snow_near",
+        "fx_snow_far"
+      ]
+    },
+    {
+      "source": "e_snow_03.png",
+      "classification": "snow",
+      "renderer_role": "Small far flake, one hundred and fifty instances.",
+      "scenes": [
+        "D7_FLURRIES_SNOW",
+        "D9_SLEET"
+      ],
+      "day_night": "both",
+      "movement": "fall, respawn at the top",
+      "alpha": "scale_snow3, halved for sleet",
+      "procedural": "yes",
+      "wear_strategy": "Scattered into the far seamless snow strip.",
+      "outputs": [
+        "fx_snow_far"
+      ]
+    },
+    {
+      "source": "e_snow_04.png",
+      "classification": "snow",
+      "renderer_role": "Heavy-snow puff drawn beside every 273rd mid flake when the many-snows setting is on.",
+      "scenes": [
+        "D7_FLURRIES_SNOW"
+      ],
+      "day_night": "both",
+      "movement": "follows its host flake",
+      "alpha": "0.8",
+      "procedural": "yes",
+      "wear_strategy": "Scattered sparsely into the near snow strip so heavy snow keeps its soft clumps.",
+      "outputs": [
+        "fx_snow_near"
+      ]
+    },
+    {
+      "source": "e_frost.png",
+      "classification": "frost/ice",
+      "renderer_role": "Ice fringe at z=-20.3 sized to just over the screen, drawn for snow, sleet, freezing fog and the below-freezing overlay.",
+      "scenes": [
+        "D7_FLURRIES_SNOW",
+        "D8_ICE_COLD",
+        "D9_SLEET",
+        "D4_FOG"
+      ],
+      "day_night": "both",
+      "movement": "none",
+      "alpha": "1.0",
+      "procedural": "no",
+      "wear_strategy": "Rotated to landscape, cropped and resized to a full-face fringe, then masked to the round bezel so the ice stays at the rim.",
+      "outputs": [
+        "overlay_frost"
+      ]
+    },
+    {
+      "source": "fog_01.jpg",
+      "classification": "fog/mist",
+      "renderer_role": "Daytime fog wash at z=-20, drawn at alpha 0.4.",
+      "scenes": [
+        "D4_FOG"
+      ],
+      "day_night": "day",
+      "movement": "none",
+      "alpha": "0.4",
+      "procedural": "no",
+      "wear_strategy": "Rotated to landscape and tiled into a horizontally seamless 900x450 strip that drifts sideways, giving the wisps motion the mobile scene never had.",
+      "outputs": [
+        "fx_fog_day"
+      ]
+    },
+    {
+      "source": "fog_02.png",
+      "classification": "fog/mist",
+      "renderer_role": "Night fog wash at z=-20, drawn at alpha 0.9.",
+      "scenes": [
+        "D4_FOG"
+      ],
+      "day_night": "night",
+      "movement": "none",
+      "alpha": "0.9",
+      "procedural": "no",
+      "wear_strategy": "Same seamless drifting strip treatment as fog_01.",
+      "outputs": [
+        "fx_fog_night"
+      ]
+    },
+    {
+      "source": "a_land_01.png",
+      "classification": "landscape/horizon",
+      "renderer_role": "Near hill at z=-23, translate(x from groundParallaxOffset times 1.2, -6.4) scale(3.5, 3.2). Green summer hill.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D5_RAIN_SHOWERS",
+        "D7_FLURRIES_SNOW"
+      ],
+      "day_night": "day",
+      "movement": "strongest ground parallax weight (1.2)",
+      "alpha": "1.0, multiplied by foregroundTwilightTint",
+      "procedural": "no",
+      "wear_strategy": "Cropped to the hill silhouette and resized to a 560-wide near band so gyro parallax never exposes an edge.",
+      "outputs": [
+        "land_near_green_day"
+      ]
+    },
+    {
+      "source": "a_land_02.png",
+      "classification": "landscape/horizon",
+      "renderer_role": "Far hill at z=-24, scale(3.6, 1.8), parallax weight 0.5.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D2_CLOUDY",
+        "D3_DREARY",
+        "D4_FOG",
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "day",
+      "movement": "medium ground parallax",
+      "alpha": "1.0, tinted",
+      "procedural": "no",
+      "wear_strategy": "Packaged: emitted at the exact drawn size for the 1:1 centre crop as land_far_day.",
+      "outputs": [
+        "land_far_day"
+      ]
+    },
+    {
+      "source": "a_land_03.png",
+      "classification": "landscape/horizon",
+      "renderer_role": "Near hill at night for every scene except snow and sleet.",
+      "scenes": [
+        "D1_CLEAR",
+        "D2_CLOUDY",
+        "D3_DREARY",
+        "D4_FOG",
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D8_ICE_COLD",
+        "D10_MOSTLY_CLEAR"
+      ],
+      "day_night": "night",
+      "movement": "strongest ground parallax",
+      "alpha": "1.0, tinted",
+      "procedural": "no",
+      "wear_strategy": "Cropped and resized to the near band for the shared night ground set.",
+      "outputs": [
+        "land_near_night"
+      ]
+    },
+    {
+      "source": "a_land_04.png",
+      "classification": "landscape/horizon",
+      "renderer_role": "Far hill at night, partner of a_land_03.",
+      "scenes": [
+        "D1_CLEAR",
+        "D2_CLOUDY",
+        "D3_DREARY",
+        "D4_FOG",
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D8_ICE_COLD",
+        "D10_MOSTLY_CLEAR"
+      ],
+      "day_night": "night",
+      "movement": "medium ground parallax",
+      "alpha": "1.0, tinted",
+      "procedural": "no",
+      "wear_strategy": "Packaged: emitted at the exact drawn size for the 1:1 centre crop as land_far_night.",
+      "outputs": [
+        "land_far_night"
+      ]
+    },
+    {
+      "source": "a_land_05.png",
+      "classification": "landscape/horizon",
+      "renderer_role": "Near hill under overcast daylight for the cloudy, fog, ice-cold, dreary and thunderstorm scenes.",
+      "scenes": [
+        "D2_CLOUDY",
+        "D3_DREARY",
+        "D4_FOG",
+        "D6_THUNDERSTORMS",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "day",
+      "movement": "strongest ground parallax",
+      "alpha": "1.0, tinted",
+      "procedural": "no",
+      "wear_strategy": "Cropped and resized to the near band for the overcast day ground set.",
+      "outputs": [
+        "land_near_overcast_day"
+      ]
+    },
+    {
+      "source": "a_land_06.png",
+      "classification": "landscape/horizon",
+      "renderer_role": "Snow-covered near hill by day for the snow and sleet scenes.",
+      "scenes": [
+        "D7_FLURRIES_SNOW",
+        "D9_SLEET"
+      ],
+      "day_night": "day",
+      "movement": "strongest ground parallax",
+      "alpha": "1.0, tinted",
+      "procedural": "no",
+      "wear_strategy": "Cropped and resized to the near band for the snow day ground set.",
+      "outputs": [
+        "land_near_snow_day"
+      ]
+    },
+    {
+      "source": "a_land_07.png",
+      "classification": "landscape/horizon",
+      "renderer_role": "Snow-covered far hill by day.",
+      "scenes": [
+        "D7_FLURRIES_SNOW",
+        "D9_SLEET"
+      ],
+      "day_night": "day",
+      "movement": "medium ground parallax",
+      "alpha": "1.0, tinted",
+      "procedural": "no",
+      "wear_strategy": "Packaged: emitted at the exact drawn size for the 1:1 centre crop as land_far_snow_day.",
+      "outputs": [
+        "land_far_snow_day"
+      ]
+    },
+    {
+      "source": "a_land_08.png",
+      "classification": "landscape/horizon",
+      "renderer_role": "Snow-covered near hill at night.",
+      "scenes": [
+        "D7_FLURRIES_SNOW",
+        "D9_SLEET"
+      ],
+      "day_night": "night",
+      "movement": "strongest ground parallax",
+      "alpha": "1.0, tinted",
+      "procedural": "no",
+      "wear_strategy": "Cropped and resized to the near band for the snow night ground set.",
+      "outputs": [
+        "land_near_snow_night"
+      ]
+    },
+    {
+      "source": "a_land_09.png",
+      "classification": "landscape/horizon",
+      "renderer_role": "Snow-covered far hill at night.",
+      "scenes": [
+        "D7_FLURRIES_SNOW",
+        "D9_SLEET"
+      ],
+      "day_night": "night",
+      "movement": "medium ground parallax",
+      "alpha": "1.0, tinted",
+      "procedural": "no",
+      "wear_strategy": "Packaged: emitted at the exact drawn size for the 1:1 centre crop as land_far_snow_night.",
+      "outputs": [
+        "land_far_snow_night"
+      ]
+    },
+    {
+      "source": "a_lawn_01.png",
+      "classification": "foreground/lawn",
+      "renderer_role": "Foreground grass tufts at z=-23 with the depth test disabled, drawn after the near hill.",
+      "scenes": [
+        "D1_CLEAR",
+        "D10_MOSTLY_CLEAR",
+        "D5_RAIN_SHOWERS",
+        "D7_FLURRIES_SNOW"
+      ],
+      "day_night": "day",
+      "movement": "shares the near hill parallax weight",
+      "alpha": "1.0, tinted",
+      "procedural": "no",
+      "wear_strategy": "Cropped and resized to a 560-wide foreground band pinned to the bottom of the face.",
+      "outputs": [
+        "lawn_green_day"
+      ]
+    },
+    {
+      "source": "a_lawn_02.png",
+      "classification": "foreground/lawn",
+      "renderer_role": "Night grass tufts.",
+      "scenes": [
+        "D1_CLEAR",
+        "D2_CLOUDY",
+        "D3_DREARY",
+        "D4_FOG",
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D8_ICE_COLD",
+        "D10_MOSTLY_CLEAR"
+      ],
+      "day_night": "night",
+      "movement": "shares the near hill parallax weight",
+      "alpha": "1.0, tinted",
+      "procedural": "no",
+      "wear_strategy": "Foreground band for the night ground set.",
+      "outputs": [
+        "lawn_night"
+      ]
+    },
+    {
+      "source": "a_lawn_03.png",
+      "classification": "foreground/lawn",
+      "renderer_role": "Overcast daytime grass tufts.",
+      "scenes": [
+        "D2_CLOUDY",
+        "D3_DREARY",
+        "D4_FOG",
+        "D6_THUNDERSTORMS",
+        "D8_ICE_COLD"
+      ],
+      "day_night": "day",
+      "movement": "shares the near hill parallax weight",
+      "alpha": "1.0, tinted",
+      "procedural": "no",
+      "wear_strategy": "Foreground band for the overcast day ground set.",
+      "outputs": [
+        "lawn_overcast_day"
+      ]
+    },
+    {
+      "source": "a_lawn_04.png",
+      "classification": "foreground/lawn",
+      "renderer_role": "Snowy daytime foreground.",
+      "scenes": [
+        "D7_FLURRIES_SNOW",
+        "D9_SLEET"
+      ],
+      "day_night": "day",
+      "movement": "shares the near hill parallax weight",
+      "alpha": "1.0, tinted",
+      "procedural": "no",
+      "wear_strategy": "Foreground band for the snow day ground set.",
+      "outputs": [
+        "lawn_snow_day"
+      ]
+    },
+    {
+      "source": "a_lawn_05.png",
+      "classification": "foreground/lawn",
+      "renderer_role": "Snowy night foreground.",
+      "scenes": [
+        "D7_FLURRIES_SNOW",
+        "D9_SLEET"
+      ],
+      "day_night": "night",
+      "movement": "shares the near hill parallax weight",
+      "alpha": "1.0, tinted",
+      "procedural": "no",
+      "wear_strategy": "Foreground band for the snow night ground set.",
+      "outputs": [
+        "lawn_snow_night"
+      ]
+    },
+    {
+      "source": "a_windmill_wing.png",
+      "classification": "windmill blades",
+      "renderer_role": "Three-blade rotor for the nearest windmill row (distance 0), rotated by mWindmillAngle plus a per-mill offset.",
+      "scenes": [
+        "all"
+      ],
+      "day_night": "both",
+      "movement": "continuous rotation whose speed follows the reported wind speed",
+      "alpha": "windmill_alpha 0.8 to 1.0; RGB multiplied by 0.2 at night",
+      "procedural": "rotation only",
+      "wear_strategy": "Trimmed to its own bounds so rotation happens about the true hub, emitted in a lit, a night-dimmed and an ambient-silhouette variant.",
+      "outputs": [
+        "wm_rotor_day",
+        "wm_rotor_night",
+        "wm_rotor_ambient"
+      ]
+    },
+    {
+      "source": "a_windmill_wing_blur2.png",
+      "classification": "windmill blades",
+      "renderer_role": "Motion-blurred rotor for the mid and far windmill rows (distances 1 and 2).",
+      "scenes": [
+        "all"
+      ],
+      "day_night": "both",
+      "movement": "continuous rotation",
+      "alpha": "windmill_alpha; RGB multiplied by 0.2 at night",
+      "procedural": "rotation only",
+      "wear_strategy": "Packaged: emitted at the exact drawn size for the 1:1 centre crop as wm_rotor_blur_day, wm_rotor_blur_night.",
+      "outputs": [
+        "wm_rotor_blur_day",
+        "wm_rotor_blur_night"
+      ]
+    },
+    {
+      "source": "a_windmill_center_01.png",
+      "classification": "windmill body",
+      "renderer_role": "Nacelle hub cap drawn over the rotor for distance-0 mills only.",
+      "scenes": [
+        "all"
+      ],
+      "day_night": "both",
+      "movement": "static at the hub",
+      "alpha": "windmill_alpha; dimmed at night",
+      "procedural": "no",
+      "wear_strategy": "Trimmed hub sprite in lit and night variants.",
+      "outputs": [
+        "wm_hub_day",
+        "wm_hub_night"
+      ]
+    },
+    {
+      "source": "a_windmill_pillar_01.png",
+      "classification": "windmill body",
+      "renderer_role": "Tower for distance-0 mills whose flip flag is false.",
+      "scenes": [
+        "all"
+      ],
+      "day_night": "both",
+      "movement": "static, moves with ground parallax",
+      "alpha": "windmill_alpha; dimmed at night",
+      "procedural": "no",
+      "wear_strategy": "Trimmed tower in lit, night and ambient-silhouette variants.",
+      "outputs": [
+        "wm_tower_day",
+        "wm_tower_night",
+        "wm_tower_ambient"
+      ]
+    },
+    {
+      "source": "a_windmill_pillar_flip_01.png",
+      "classification": "windmill body",
+      "renderer_role": "Mirrored tower for distance-0 mills whose flip flag is true, so the cluster does not look cloned.",
+      "scenes": [
+        "all"
+      ],
+      "day_night": "both",
+      "movement": "static",
+      "alpha": "windmill_alpha; dimmed at night",
+      "procedural": "no",
+      "wear_strategy": "Not packaged. Both mills that fall inside the crop (indices 1 and 2) have windmill_flip false, so the mirrored tower is never needed.",
+      "outputs": []
+    },
+    {
+      "source": "a_windmill_pillar_blur2_02.png",
+      "classification": "windmill body",
+      "renderer_role": "Soft tower for distance 1 and 2 mills.",
+      "scenes": [
+        "all"
+      ],
+      "day_night": "both",
+      "movement": "static",
+      "alpha": "windmill_alpha; dimmed at night",
+      "procedural": "no",
+      "wear_strategy": "Packaged: emitted at the exact drawn size for the 1:1 centre crop as wm_tower_far_day, wm_tower_far_night.",
+      "outputs": [
+        "wm_tower_far_day",
+        "wm_tower_far_night"
+      ]
+    },
+    {
+      "source": "a_windmill_pillar_flip_blur2_02.png",
+      "classification": "windmill body",
+      "renderer_role": "Mirrored soft tower for flipped distance 1 and 2 mills.",
+      "scenes": [
+        "all"
+      ],
+      "day_night": "both",
+      "movement": "static",
+      "alpha": "windmill_alpha; dimmed at night",
+      "procedural": "no",
+      "wear_strategy": "Not packaged; the distance 1 and 2 mill rows are outside the crop.",
+      "outputs": []
+    },
+    {
+      "source": "logo.png",
+      "classification": "logo/watermark",
+      "renderer_role": "Current watermark drawn bottom-left when the logo setting is on. The texture has about 25px of transparent left padding out of 512.",
+      "scenes": [
+        "all"
+      ],
+      "day_night": "both",
+      "movement": "none",
+      "alpha": "1.0",
+      "procedural": "no",
+      "wear_strategy": "Trimmed and downscaled to a small bottom-centre watermark behind an opt-in BooleanConfiguration.",
+      "outputs": [
+        "logo_mark",
+        "weather_error_dot"
+      ]
+    },
+    {
+      "source": "logo_legacy.png",
+      "classification": "logo/watermark",
+      "renderer_role": "Classic watermark used when the legacy classic-watermark setting is on.",
+      "scenes": [
+        "all"
+      ],
+      "day_night": "both",
+      "movement": "none",
+      "alpha": "1.0",
+      "procedural": "no",
+      "wear_strategy": "Not packaged. One watermark is enough on a 450px face; documented as a known difference.",
+      "outputs": []
+    },
+    {
+      "source": "waterdrop_a_0.png .. waterdrop_a_24.png",
+      "classification": "water/humidity effect",
+      "renderer_role": "Twenty-five-frame run-off animation, instance set 1, played on randomised start frames over the waterdrop overlay.",
+      "scenes": [
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D9_SLEET"
+      ],
+      "day_night": "both",
+      "movement": "frame sequence at a fixed position",
+      "alpha": "1.0",
+      "procedural": "yes",
+      "wear_strategy": "Not packaged. Fifty frames of 256x512 would dominate the memory budget for an effect that is a few pixels tall at 450px. Documented as a known difference.",
+      "outputs": []
+    },
+    {
+      "source": "waterdrop_b_0.png .. waterdrop_b_24.png",
+      "classification": "water/humidity effect",
+      "renderer_role": "Twenty-five-frame run-off animation, instance set 2.",
+      "scenes": [
+        "D5_RAIN_SHOWERS",
+        "D6_THUNDERSTORMS",
+        "D9_SLEET"
+      ],
+      "day_night": "both",
+      "movement": "frame sequence at a fixed position",
+      "alpha": "1.0",
+      "procedural": "yes",
+      "wear_strategy": "Not packaged, as above.",
+      "outputs": []
+    }
+  ]
+}

@@ -2,3 +2,62 @@ plugins {
     id 'com.android.application' version '9.3.2' apply false
     id 'org.jetbrains.kotlin.android' version '2.2.10' apply false
 }
+
+def versionFile = rootProject.layout.projectDirectory.file("version.properties")
+
+static def readVersionCodes(String text) {
+    def props = new Properties()
+    props.load(new StringReader(text))
+    return props
+}
+
+subprojects {
+    plugins.withId("com.android.application") {
+        def moduleKey = "${project.name}.versionCode"
+        def versionText = providers.fileContents(versionFile).asText.get()
+        def declared = readVersionCodes(versionText).getProperty(moduleKey)
+        if (declared == null) {
+            throw new GradleException(
+                    "version.properties is missing '${moduleKey}'. Add it, seeded from the " +
+                            "version code currently on Google Play for ${project.path}.")
+        }
+        def currentCode = declared.trim().toInteger()
+
+        extensions.getByName("androidComponents").onVariants(
+                extensions.getByName("androidComponents").selector().all()) { variant ->
+            variant.outputs.each { output ->
+                output.versionCode.set(currentCode)
+            }
+        }
+
+        def versionFilePath = versionFile.asFile
+        tasks.register("bumpVersionCode") {
+            group = "publishing"
+            description = "Increments ${moduleKey} in version.properties for the next Play upload."
+            outputs.upToDateWhen { false }
+            doLast {
+                def nextCode = currentCode + 1
+                def lines = versionFilePath.readLines()
+                def replaced = false
+                def rewritten = lines.collect { line ->
+                    if (line.trim().startsWith("${moduleKey}=")) {
+                        replaced = true
+                        return "${moduleKey}=${nextCode}"
+                    }
+                    return line
+                }
+                if (!replaced) {
+                    throw new GradleException("could not find '${moduleKey}' in ${versionFilePath}")
+                }
+                versionFilePath.text = rewritten.join("\n") + "\n"
+                logger.lifecycle("${project.name} versionCode ${currentCode} -> ${nextCode}")
+            }
+        }
+
+        if (!rootProject.hasProperty("noVersionBump")) {
+            tasks.matching { it.name ==~ /^bundle([A-Z]\w*)?Release$/ }.configureEach {
+                finalizedBy("bumpVersionCode")
+            }
+        }
+    }
+}

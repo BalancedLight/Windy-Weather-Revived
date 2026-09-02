@@ -1,0 +1,89 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace = "com.BalancedLight.WindyWeather.wear"
+    compileSdk = 36
+
+    defaultConfig {
+        applicationId = "com.BalancedLight.WindyWeather"
+        minSdk = 34
+        targetSdk = 36
+        versionCode = 100001
+        versionName = "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = false
+            shrinkResources = false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    lint {
+        abortOnError = false
+    }
+
+    buildFeatures {
+        buildConfig = false
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile "src/main/AndroidManifest.xml"
+            res.srcDirs = ["src/main/res"]
+            java.srcDirs = []
+        }
+    }
+}
+
+dependencies {
+}
+
+def isDisabledDexTask = { String name ->
+    name.startsWith("dexBuilder") ||
+            (name.startsWith("generate") && name.endsWith("GlobalSynthetics"))
+}
+
+def isDexMergeTask = { String name ->
+    name.startsWith("mergeDex") || name.startsWith("mergeProjectDex") ||
+            name.startsWith("mergeExtDex") || name.startsWith("mergeLibDex")
+}
+
+def emptyD8Metadata = { boolean debuggable ->
+    "{\"dexFiles\":[],\"options\":{\"minApiLevel\":\"" +
+            android.defaultConfig.minSdk +
+            "\",\"isDebugModeEnabled\":" + debuggable + "},\"version\":\"" +
+            com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION + "\"}"
+}
+
+tasks.configureEach { task ->
+    if (isDisabledDexTask(task.name)) {
+        task.enabled = false
+    } else if (isDexMergeTask(task.name)) {
+        task.doFirst {
+            task.inputs.files.files.each { candidate ->
+                if (!candidate.exists() && !candidate.name.contains(".")) {
+                    candidate.mkdirs()
+                }
+            }
+        }
+        if (task.name.startsWith("mergeDex")) {
+            task.doLast {
+                def variant = task.name.substring("mergeDex".length()).uncapitalize()
+                def metadata = layout.buildDirectory
+                        .file("intermediates/d8_metadata/${variant}/${task.name}/d8-metadata.dat").get().asFile
+                if (!metadata.exists()) {
+                    metadata.parentFile.mkdirs()
+                    metadata.text = emptyD8Metadata(variant.startsWith("debug"))
+                }
+            }
+        }
+    }
+}

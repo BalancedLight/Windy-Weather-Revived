@@ -1,0 +1,137 @@
+name: Wear OS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wear:
+    name: Build and validate the Wear OS watch face
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install the pinned Pillow
+        run: python -m pip install --no-input "pillow==12.2.0"
+
+      - name: Verify generated Wear assets still match their sources
+        run: python tools/wear_assets/generate.py --check
+
+      - name: Fetch the Watch Face Format tools
+        run: bash tools/wear_assets/fetch_wff_tools.sh
+
+      - name: Validate watchface.xml against Watch Face Format version 2
+        run: java -jar tools/wff/wff-validator.jar 2 wearWatchFace/src/main/res/raw/watchface.xml
+
+      - name: Make Gradle Wrapper executable
+        run: chmod +x gradlew
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build the Wear debug APK and release AAB
+        run: ./gradlew :wearWatchFace:assembleDebug :wearWatchFace:bundleRelease -PnoVersionBump --console=plain --stacktrace
+
+      - name: Run the Watch Face Format memory evaluator
+        run: |
+          java -jar tools/wff/memory-footprint.jar \
+            --watch-face wearWatchFace/build/outputs/bundle/release/wearWatchFace-release.aab \
+            --schema-version 2 \
+            --ambient-limit-mb 10 \
+            --active-limit-mb 100 \
+            --report | tee memory-footprint.json
+          java -jar tools/wff/memory-footprint.jar \
+            --watch-face wearWatchFace/build/outputs/bundle/release/wearWatchFace-release.aab \
+            --schema-version 2 \
+            --ambient-limit-mb 10 \
+            --active-limit-mb 100
+
+      - name: Verify the package is resource-only
+        shell: bash
+        run: |
+          aab="wearWatchFace/build/outputs/bundle/release/wearWatchFace-release.aab"
+          apk="wearWatchFace/build/outputs/apk/debug/wearWatchFace-debug.apk"
+          test -s "$aab"
+          test -s "$apk"
+
+          for archive in "$aab" "$apk"; do
+            echo "Checking $archive for executable code"
+            if unzip -Z1 "$archive" | grep -Ei '\.(dex|so|jar|class)$'; then
+              echo "::error::$archive contains executable code; a Watch Face Format package must be resource-only"
+              exit 1
+            fi
+          done
+
+          echo "Checking the manifest declares no code and the right format version"
+          unzip -p "$aab" base/manifest/AndroidManifest.xml > /tmp/wear-manifest.bin
+          manifest_strings="$(tr -d '\000' < /tmp/wear-manifest.bin)"
+          grep -q "hasCode" <<< "$manifest_strings"
+          grep -q "com.google.wear.watchface.format.version" <<< "$manifest_strings"
+
+          for forbidden in "android.permission.INTERNET" "android.permission.ACCESS_COARSE_LOCATION" \
+                           "android.permission.ACCESS_FINE_LOCATION" "android.permission.ACCESS_NETWORK_STATE"; do
+            if grep -q "$forbidden" <<< "$manifest_strings"; then
+              echo "::error::$forbidden must not appear in the watch face manifest"
+              exit 1
+            fi
+          done
+
+          echo "Checking the watch face declares no service or receiver"
+          for forbidden in "<service" "<receiver" "<provider" "<activity"; do
+            if grep -q "$forbidden" wearWatchFace/src/main/AndroidManifest.xml; then
+              echo "::error::$forbidden must not appear in the watch face manifest"
+              exit 1
+            fi
+          done
+
+          echo "Checking no Kotlin, Java or native sources exist in the module"
+          if find wearWatchFace/src -type f \( -name '*.kt' -o -name '*.java' -o -name '*.so' -o -name '*.c' -o -name '*.cpp' \) | grep .; then
+            echo "::error::the watch face module must contain no source code"
+            exit 1
+          fi
+
+      - name: Confirm the mobile module is untouched
+        run: |
+          if ! git diff --quiet --exit-code -- app; then
+            echo "::error::this workflow must never modify anything under app/"
+            git --no-pager diff --stat -- app
+            exit 1
+          fi
+
+      - name: Confirm the build did not bump a version code
+        run: |
+          if ! git diff --quiet --exit-code -- version.properties; then
+            echo "::error::CI must build with -PnoVersionBump; version.properties was rewritten"
+            git --no-pager diff -- version.properties
+            exit 1
+          fi
+
+      - name: Upload the Wear OS release bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: WindyWeather-WearOS-release
+          path: |
+            wearWatchFace/build/outputs/bundle/release/*.aab
+            wearWatchFace/build/outputs/apk/debug/*.apk
+            memory-footprint.json
+            wear/wear_asset_manifest.json
+          if-no-files-found: error

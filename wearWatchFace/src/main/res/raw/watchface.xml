@@ -1,0 +1,1058 @@
+<WatchFace width="450" height="450" clipShape="CIRCLE">
+    <Metadata key="CLOCK_TYPE" value="DIGITAL" />
+    <Metadata key="PREVIEW_TIME" value="10:10:30" />
+
+    <UserConfigurations>
+        <BooleanConfiguration id="showTemperature" displayName="@string/cfg_temperature" screenReaderText="@string/sr_temperature" defaultValue="TRUE" />
+        <BooleanConfiguration id="showCondition" displayName="@string/cfg_condition" screenReaderText="@string/sr_condition" defaultValue="FALSE" />
+        <BooleanConfiguration id="showBranding" displayName="@string/cfg_branding" screenReaderText="@string/sr_branding" defaultValue="FALSE" />
+        <ListConfiguration id="clockPosition" displayName="@string/cfg_clock_position" defaultValue="top">
+            <ListOption id="top" displayName="@string/cfg_clock_top" icon="cfg_clock_top" screenReaderText="@string/sr_clock_top" />
+            <ListOption id="center" displayName="@string/cfg_clock_center" icon="cfg_clock_center" screenReaderText="@string/sr_clock_center" />
+            <ListOption id="bottom" displayName="@string/cfg_clock_bottom" icon="cfg_clock_bottom" screenReaderText="@string/sr_clock_bottom" />
+            <ListOption id="left" displayName="@string/cfg_clock_left" icon="cfg_clock_left" screenReaderText="@string/sr_clock_left" />
+            <ListOption id="right" displayName="@string/cfg_clock_right" icon="cfg_clock_right" screenReaderText="@string/sr_clock_right" />
+        </ListConfiguration>
+        <ColorConfiguration id="clockColour" displayName="@string/cfg_clock_colour" defaultValue="light">
+            <ColorOption id="light" displayName="@string/cfg_clock_light" colors="#FFFFFFFF #FFDCE4F0 #99000000" />
+            <ColorOption id="dark" displayName="@string/cfg_clock_dark" colors="#FF141A24 #FF2C3644 #66FFFFFF" />
+        </ColorConfiguration>
+        <Flavors defaultValue="classic">
+            <Flavor id="classic" displayName="@string/flavor_classic">
+                <Configuration id="showTemperature" optionId="TRUE" />
+                <Configuration id="showCondition" optionId="FALSE" />
+                <Configuration id="showBranding" optionId="FALSE" />
+                <Configuration id="clockPosition" optionId="top" />
+                <Configuration id="clockColour" optionId="light" />
+            </Flavor>
+            <Flavor id="informative" displayName="@string/flavor_informative">
+                <Configuration id="showTemperature" optionId="TRUE" />
+                <Configuration id="showCondition" optionId="TRUE" />
+                <Configuration id="showBranding" optionId="TRUE" />
+                <Configuration id="clockPosition" optionId="top" />
+                <Configuration id="clockColour" optionId="light" />
+            </Flavor>
+            <Flavor id="minimal" displayName="@string/flavor_minimal">
+                <Configuration id="showTemperature" optionId="FALSE" />
+                <Configuration id="showCondition" optionId="FALSE" />
+                <Configuration id="showBranding" optionId="FALSE" />
+                <Configuration id="clockPosition" optionId="center" />
+                <Configuration id="clockColour" optionId="light" />
+            </Flavor>
+        </Flavors>
+    </UserConfigurations>
+
+    <Scene backgroundColor="#ff000000">
+
+        <Group name="interactive" x="0" y="0" width="450" height="450" alpha="255">
+            <Variant mode="AMBIENT" target="alpha" value="0" />
+
+            <Group name="skyLayer" x="0" y="0" width="450" height="450" alpha="255">
+
+                <Condition>
+                    <Expressions>
+                        <Expression name="skyOvercastNight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18))) &amp;&amp; ([WEATHER.CONDITION] == 13 || [WEATHER.CONDITION] == 4 || [WEATHER.CONDITION] == 6 || [WEATHER.CONDITION] == 12 || [WEATHER.CONDITION] == 9 || [WEATHER.CONDITION] == 5 || [WEATHER.CONDITION] == 7 || [WEATHER.CONDITION] == 11 || [WEATHER.CONDITION] == 10)</Expression>
+                        <Expression name="skyNight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))</Expression>
+                        <Expression name="skyOvercastDay">[WEATHER.CONDITION] == 3 || [WEATHER.CONDITION] == 13 || [WEATHER.CONDITION] == 4 || [WEATHER.CONDITION] == 6 || [WEATHER.CONDITION] == 12 || [WEATHER.CONDITION] == 9 || [WEATHER.CONDITION] == 5 || [WEATHER.CONDITION] == 7 || [WEATHER.CONDITION] == 11 || [WEATHER.CONDITION] == 10</Expression>
+                    </Expressions>
+                    <Compare expression="skyOvercastNight">
+                        <PartImage name="skyOvercastNight" x="0" y="0" width="451" height="451">
+                            <Image resource="bg_sky_overcast_night" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="skyNight">
+                        <PartImage name="skyClearNight" x="0" y="0" width="451" height="451">
+                            <Image resource="bg_sky_clear_night" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="skyOvercastDay">
+                        <PartImage name="skyOvercastDay" x="0" y="0" width="451" height="451">
+                            <Image resource="bg_sky_overcast_day" />
+                        </PartImage>
+                    </Compare>
+                    <Default>
+                        <PartImage name="skyClearDay" x="0" y="0" width="451" height="451">
+                            <Image resource="bg_sky_clear_day" />
+                        </PartImage>
+                    </Default>
+                </Condition>
+
+                <PartImage name="starField" x="0" y="0" width="451" height="115" alpha="0">
+                    <Transform target="alpha" value="((((([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) &amp;&amp; ([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14)) ? 255 : 0)" />
+                    <Image resource="overlay_starfield" />
+                </PartImage>
+                <PartImage name="starTwinkle0" x="318" y="80" width="55" height="55" alpha="0">
+                    <Transform target="alpha" value="((((([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) &amp;&amp; ([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14)) ? (40 + 150 * abs(fract([SECOND_MILLISECOND] / 3.75) * 2 - 1)) : 0)" />
+                    <Image resource="star_twinkle" />
+                </PartImage>
+                <PartImage name="starTwinkle1" x="225" y="111" width="55" height="55" alpha="0">
+                    <Transform target="alpha" value="((((([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) &amp;&amp; ([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14)) ? (40 + 150 * abs(fract([SECOND_MILLISECOND] / 3.75 + 0.28) * 2 - 1)) : 0)" />
+                    <Image resource="star_twinkle" />
+                </PartImage>
+                <PartImage name="starTwinkle2" x="331" y="162" width="44" height="44" alpha="0">
+                    <Transform target="alpha" value="((((([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) &amp;&amp; ([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14)) ? (40 + 150 * abs(fract([SECOND_MILLISECOND] / 3.75 + 0.55) * 2 - 1)) : 0)" />
+                    <Image resource="star_twinkle" />
+                </PartImage>
+                <PartImage name="starTwinkle3" x="232" y="163" width="55" height="55" alpha="0">
+                    <Transform target="alpha" value="((((([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) &amp;&amp; ([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14)) ? (40 + 150 * abs(fract([SECOND_MILLISECOND] / 3.75 + 0.81) * 2 - 1)) : 0)" />
+                    <Image resource="star_twinkle" />
+                </PartImage>
+                <PartImage name="starTwinkle4" x="134" y="110" width="44" height="44" alpha="0">
+                    <Transform target="alpha" value="((((([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) &amp;&amp; ([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14)) ? (40 + 150 * abs(fract([SECOND_MILLISECOND] / 3.75 + 0.14) * 2 - 1)) : 0)" />
+                    <Image resource="star_twinkle" />
+                </PartImage>
+                <PartImage name="starTwinkle5" x="79" y="93" width="44" height="44" alpha="0">
+                    <Transform target="alpha" value="((((([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) &amp;&amp; ([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14)) ? (40 + 150 * abs(fract([SECOND_MILLISECOND] / 3.75 + 0.42) * 2 - 1)) : 0)" />
+                    <Image resource="star_twinkle" />
+                </PartImage>
+                <PartImage name="starTwinkle6" x="25" y="101" width="55" height="55" alpha="0">
+                    <Transform target="alpha" value="((((([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) &amp;&amp; ([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14)) ? (40 + 150 * abs(fract([SECOND_MILLISECOND] / 3.75 + 0.68) * 2 - 1)) : 0)" />
+                    <Image resource="star_twinkle" />
+                </PartImage>
+
+                <PartImage name="nightCover" x="0" y="0" width="451" height="451" alpha="0">
+                    <Transform target="alpha" value="((((([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) &amp;&amp; ([WEATHER.CONDITION] == 13 || [WEATHER.CONDITION] == 3 || [WEATHER.CONDITION] == 4 || [WEATHER.CONDITION] == 6 || [WEATHER.CONDITION] == 12 || [WEATHER.CONDITION] == 9 || [WEATHER.CONDITION] == 10)) ? 255 : 0)" />
+                    <Image resource="overlay_nightcover" />
+                </PartImage>
+
+                <PartImage name="sunFlare" x="0" y="0" width="450" height="450" alpha="0">
+                    <Transform target="alpha" value="(((!(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) &amp;&amp; ([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14)) ? 86 : 0)" />
+                    <Image resource="sun_flare" />
+                </PartImage>
+                <PartImage name="sunRays" x="94" y="-151" width="504" height="504" pivotX="0.5" pivotY="0.5" angle="0" alpha="0">
+                    <Transform target="angle" value="[SECOND_MILLISECOND] * 6" />
+                    <Transform target="alpha" value="(((!(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) &amp;&amp; ([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14 || [WEATHER.CONDITION] == 2 || [WEATHER.CONDITION] == 15)) ? 140 : 0)" />
+                    <Image resource="sun_rays" />
+                </PartImage>
+                <PartImage name="sunCore" x="70" y="0" width="380" height="377" alpha="0">
+                    <Transform target="alpha" value="(((!(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) &amp;&amp; ([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14 || [WEATHER.CONDITION] == 2 || [WEATHER.CONDITION] == 15)) ? 107 : 0)" />
+                    <Image resource="sun_core" />
+                </PartImage>
+
+                <Group name="moonGroup" x="0" y="0" width="450" height="450" alpha="0">
+                    <Transform target="alpha" value="((((([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) &amp;&amp; ([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14)) &amp;&amp; [MOON_PHASE_TYPE] &gt; 0 ? 255 : 0)" />
+                    <Condition>
+                        <Expressions>
+                            <Expression name="moon1">[MOON_PHASE_TYPE] == 1</Expression>
+                            <Expression name="moon2">[MOON_PHASE_TYPE] == 2</Expression>
+                            <Expression name="moon3">[MOON_PHASE_TYPE] == 3</Expression>
+                            <Expression name="moon5">[MOON_PHASE_TYPE] == 5</Expression>
+                            <Expression name="moon6">[MOON_PHASE_TYPE] == 6</Expression>
+                            <Expression name="moon7">[MOON_PHASE_TYPE] == 7</Expression>
+                        </Expressions>
+                        <Compare expression="moon1">
+                            <PartImage name="moonEveningCrescent" x="304" y="46" width="93" height="93">
+                                <Image resource="moon_p1" />
+                            </PartImage>
+                        </Compare>
+                        <Compare expression="moon2">
+                            <PartImage name="moonFirstQuarter" x="304" y="46" width="93" height="93">
+                                <Image resource="moon_p2" />
+                            </PartImage>
+                        </Compare>
+                        <Compare expression="moon3">
+                            <PartImage name="moonWaxingGibbous" x="304" y="46" width="93" height="93">
+                                <Image resource="moon_p3" />
+                            </PartImage>
+                        </Compare>
+                        <Compare expression="moon5">
+                            <PartImage name="moonWaningGibbous" x="304" y="46" width="93" height="93">
+                                <Image resource="moon_p5" />
+                            </PartImage>
+                        </Compare>
+                        <Compare expression="moon6">
+                            <PartImage name="moonLastQuarter" x="304" y="46" width="93" height="93">
+                                <Image resource="moon_p6" />
+                            </PartImage>
+                        </Compare>
+                        <Compare expression="moon7">
+                            <PartImage name="moonMorningCrescent" x="304" y="46" width="93" height="93">
+                                <Image resource="moon_p7" />
+                            </PartImage>
+                        </Compare>
+                        <Default>
+                            <PartImage name="moonFull" x="304" y="46" width="93" height="93">
+                                <Image resource="moon_p4" />
+                            </PartImage>
+                        </Default>
+                    </Condition>
+                </Group>
+            </Group>
+
+            <Group name="cloudLayer" x="0" y="0" width="450" height="450" alpha="255">
+
+                <Condition>
+                    <Expressions>
+                        <Expression name="cloudANight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18))) &amp;&amp; ([WEATHER.CONDITION] == 2 || [WEATHER.CONDITION] == 15 || [WEATHER.CONDITION] == 4 || [WEATHER.CONDITION] == 6 || [WEATHER.CONDITION] == 12 || [WEATHER.CONDITION] == 9 || [WEATHER.CONDITION] == 5 || [WEATHER.CONDITION] == 7 || [WEATHER.CONDITION] == 11 || [WEATHER.CONDITION] == 10)</Expression>
+                        <Expression name="cloudAGrey">[WEATHER.CONDITION] == 13 || [WEATHER.CONDITION] == 3 || ([WEATHER.CONDITION] == 14 &amp;&amp; (([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18))))</Expression>
+                        <Expression name="cloudALight">[WEATHER.CONDITION] == 14</Expression>
+                    </Expressions>
+                    <Compare expression="cloudANight">
+                        <PartImage name="cloudANight" x="32" y="71" width="389" height="182" alpha="64">
+                            <Transform target="x" value="0 - 389 + fract([SECONDS_IN_DAY] / ([WEATHER.CONDITION] == 15 ? 108 : 216)) * 839" />
+                            <Image resource="cloud_a_night" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="cloudAGrey">
+                        <PartImage name="cloudAGrey" x="32" y="71" width="389" height="182" alpha="128">
+                            <Transform target="x" value="0 - 389 + fract([SECONDS_IN_DAY] / 216) * 839" />
+                            <Transform target="alpha" value="(((([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) ? 115 : 230)" />
+                            <Image resource="cloud_a_grey" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="cloudALight">
+                        <PartImage name="cloudALight" x="29" y="-21" width="397" height="185" alpha="77">
+                            <Transform target="x" value="0 - 397 + fract([SECONDS_IN_DAY] / 216) * 847" />
+                            <Image resource="cloud_a_light" />
+                        </PartImage>
+                    </Compare>
+                    <Default>
+                        <PartImage name="cloudADay" x="32" y="71" width="389" height="182" alpha="0">
+                            <Transform target="x" value="0 - 389 + fract([SECONDS_IN_DAY] / ([WEATHER.CONDITION] == 15 ? 108 : 216)) * 839" />
+                            <Transform target="alpha" value="(([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8) ? 0 : 230)" />
+                            <Image resource="cloud_a_day" />
+                        </PartImage>
+                    </Default>
+                </Condition>
+
+                <Condition>
+                    <Expressions>
+                        <Expression name="cloudBNight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18))) &amp;&amp; ([WEATHER.CONDITION] == 2 || [WEATHER.CONDITION] == 15 || [WEATHER.CONDITION] == 4 || [WEATHER.CONDITION] == 6 || [WEATHER.CONDITION] == 12 || [WEATHER.CONDITION] == 9 || [WEATHER.CONDITION] == 5 || [WEATHER.CONDITION] == 7 || [WEATHER.CONDITION] == 11 || [WEATHER.CONDITION] == 10)</Expression>
+                        <Expression name="cloudBGrey">[WEATHER.CONDITION] == 13 || [WEATHER.CONDITION] == 3 || ([WEATHER.CONDITION] == 14 &amp;&amp; (([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18))))</Expression>
+                        <Expression name="cloudBLight">[WEATHER.CONDITION] == 14</Expression>
+                    </Expressions>
+                    <Compare expression="cloudBNight">
+                        <PartImage name="cloudBNight" x="28" y="21" width="390" height="177" alpha="64">
+                            <Transform target="x" value="0 - 390 + fract([SECONDS_IN_DAY] / ([WEATHER.CONDITION] == 15 ? 72 : 144)) * 840" />
+                            <Image resource="cloud_b_night" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="cloudBGrey">
+                        <PartImage name="cloudBGrey" x="28" y="21" width="390" height="177" alpha="128">
+                            <Transform target="x" value="0 - 390 + fract([SECONDS_IN_DAY] / 144) * 840" />
+                            <Transform target="alpha" value="(((([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))) ? 153 : 128)" />
+                            <Image resource="cloud_b_grey" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="cloudBLight">
+                        <PartImage name="cloudBLight" x="17" y="260" width="411" height="163" alpha="115">
+                            <Transform target="x" value="0 - 411 + fract([SECONDS_IN_DAY] / 144) * 861" />
+                            <Image resource="cloud_b_light" />
+                        </PartImage>
+                    </Compare>
+                    <Default>
+                        <PartImage name="cloudBDay" x="28" y="21" width="390" height="177" alpha="0">
+                            <Transform target="x" value="0 - 390 + fract([SECONDS_IN_DAY] / ([WEATHER.CONDITION] == 15 ? 72 : 144)) * 840" />
+                            <Transform target="alpha" value="(([WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8) ? 0 : 128)" />
+                            <Image resource="cloud_b_day" />
+                        </PartImage>
+                    </Default>
+                </Condition>
+
+            </Group>
+
+            <Group name="landscapeFarMills" x="0" y="0" width="450" height="450" alpha="255">
+                <Gyro x="(3.0/90) * clamp([ACCELEROMETER_ANGLE_X], -90, 90)" />
+
+                <Condition>
+                    <Expressions>
+                        <Expression name="farMillsNight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))</Expression>
+                    </Expressions>
+                    <Compare expression="farMillsNight">
+                        <Group name="farMillsNight" x="0" y="0" width="450" height="450" alpha="255">
+                            <PartImage name="mill11TowerNight" x="183" y="351" width="3" height="33" alpha="230">
+                                <Image resource="wm_tower_far_night" />
+                            </PartImage>
+                            <PartImage name="mill11RotorNight" x="171" y="337" width="30" height="30" pivotX="0.5" pivotY="0.5" angle="0" alpha="230">
+                                <Transform target="angle" value="90 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_blur_night" />
+                            </PartImage>
+                            <PartImage name="mill12TowerNight" x="300" y="348" width="3" height="33" alpha="230">
+                                <Image resource="wm_tower_far_night" />
+                            </PartImage>
+                            <PartImage name="mill12RotorNight" x="287" y="333" width="30" height="30" pivotX="0.5" pivotY="0.5" angle="0" alpha="230">
+                                <Transform target="angle" value="120 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_blur_night" />
+                            </PartImage>
+                        </Group>
+                    </Compare>
+                    <Default>
+                        <Group name="farMillsDay" x="0" y="0" width="450" height="450" alpha="255">
+                            <PartImage name="mill11TowerDay" x="183" y="351" width="3" height="33" alpha="230">
+                                <Image resource="wm_tower_far_day" />
+                            </PartImage>
+                            <PartImage name="mill11RotorDay" x="171" y="337" width="30" height="30" pivotX="0.5" pivotY="0.5" angle="0" alpha="230">
+                                <Transform target="angle" value="90 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_blur_day" />
+                            </PartImage>
+                            <PartImage name="mill12TowerDay" x="300" y="348" width="3" height="33" alpha="230">
+                                <Image resource="wm_tower_far_day" />
+                            </PartImage>
+                            <PartImage name="mill12RotorDay" x="287" y="333" width="30" height="30" pivotX="0.5" pivotY="0.5" angle="0" alpha="230">
+                                <Transform target="angle" value="120 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_blur_day" />
+                            </PartImage>
+                        </Group>
+                    </Default>
+                </Condition>
+            </Group>
+
+            <Group name="landscapeMidMills" x="0" y="0" width="450" height="450" alpha="255">
+                <Gyro x="(7.5/90) * clamp([ACCELEROMETER_ANGLE_X], -90, 90)" />
+
+                <Condition>
+                    <Expressions>
+                        <Expression name="farSnowNight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18))) &amp;&amp; ([WEATHER.CONDITION] == 5 || [WEATHER.CONDITION] == 7 || [WEATHER.CONDITION] == 11 || [WEATHER.CONDITION] == 10)</Expression>
+                        <Expression name="farNight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))</Expression>
+                        <Expression name="farSnowDay">[WEATHER.CONDITION] == 5 || [WEATHER.CONDITION] == 7 || [WEATHER.CONDITION] == 11 || [WEATHER.CONDITION] == 10</Expression>
+                    </Expressions>
+                    <Compare expression="farSnowNight">
+                        <PartImage name="landFarSnowNight" x="-26" y="350" width="502" height="101">
+                            <Image resource="land_far_snow_night" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="farNight">
+                        <PartImage name="landFarNight" x="-26" y="350" width="502" height="101">
+                            <Image resource="land_far_night" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="farSnowDay">
+                        <PartImage name="landFarSnowDay" x="-26" y="350" width="502" height="101">
+                            <Image resource="land_far_snow_day" />
+                        </PartImage>
+                    </Compare>
+                    <Default>
+                        <PartImage name="landFarDay" x="-26" y="350" width="502" height="101">
+                            <Image resource="land_far_day" />
+                        </PartImage>
+                    </Default>
+                </Condition>
+
+                <Condition>
+                    <Expressions>
+                        <Expression name="midMillsNight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))</Expression>
+                    </Expressions>
+                    <Compare expression="midMillsNight">
+                        <Group name="midMillsNight" x="0" y="0" width="450" height="450" alpha="255">
+                            <PartImage name="mill5TowerNight" x="45" y="333" width="6" height="64">
+                                <Image resource="wm_tower_far_night" />
+                            </PartImage>
+                            <PartImage name="mill5RotorNight" x="19" y="304" width="59" height="59" pivotX="0.5" pivotY="0.5" angle="0">
+                                <Transform target="angle" value="30 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_blur_night" />
+                            </PartImage>
+                            <PartImage name="mill6TowerNight" x="186" y="333" width="5" height="51">
+                                <Image resource="wm_tower_far_night" />
+                            </PartImage>
+                            <PartImage name="mill6RotorNight" x="165" y="312" width="47" height="47" pivotX="0.5" pivotY="0.5" angle="0">
+                                <Transform target="angle" value="60 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_blur_night" />
+                            </PartImage>
+                            <PartImage name="mill7TowerNight" x="354" y="333" width="5" height="51">
+                                <Image resource="wm_tower_far_night" />
+                            </PartImage>
+                            <PartImage name="mill7RotorNight" x="334" y="312" width="47" height="47" pivotX="0.5" pivotY="0.5" angle="0">
+                                <Transform target="angle" value="90 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_blur_night" />
+                            </PartImage>
+                        </Group>
+                    </Compare>
+                    <Default>
+                        <Group name="midMillsDay" x="0" y="0" width="450" height="450" alpha="255">
+                            <PartImage name="mill5TowerDay" x="45" y="333" width="6" height="64">
+                                <Image resource="wm_tower_far_day" />
+                            </PartImage>
+                            <PartImage name="mill5RotorDay" x="19" y="304" width="59" height="59" pivotX="0.5" pivotY="0.5" angle="0">
+                                <Transform target="angle" value="30 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_blur_day" />
+                            </PartImage>
+                            <PartImage name="mill6TowerDay" x="186" y="333" width="5" height="51">
+                                <Image resource="wm_tower_far_day" />
+                            </PartImage>
+                            <PartImage name="mill6RotorDay" x="165" y="312" width="47" height="47" pivotX="0.5" pivotY="0.5" angle="0">
+                                <Transform target="angle" value="60 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_blur_day" />
+                            </PartImage>
+                            <PartImage name="mill7TowerDay" x="354" y="333" width="5" height="51">
+                                <Image resource="wm_tower_far_day" />
+                            </PartImage>
+                            <PartImage name="mill7RotorDay" x="334" y="312" width="47" height="47" pivotX="0.5" pivotY="0.5" angle="0">
+                                <Transform target="angle" value="90 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_blur_day" />
+                            </PartImage>
+                        </Group>
+                    </Default>
+                </Condition>
+            </Group>
+
+            <Group name="landscapeLayer" x="0" y="0" width="450" height="450" alpha="255">
+                <Gyro x="(18.0/90) * clamp([ACCELEROMETER_ANGLE_X], -90, 90)" />
+
+                <Condition>
+                    <Expressions>
+                        <Expression name="nearSnowNight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18))) &amp;&amp; ([WEATHER.CONDITION] == 5 || [WEATHER.CONDITION] == 7 || [WEATHER.CONDITION] == 11 || [WEATHER.CONDITION] == 10)</Expression>
+                        <Expression name="nearNight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))</Expression>
+                        <Expression name="nearSnowDay">[WEATHER.CONDITION] == 5 || [WEATHER.CONDITION] == 7 || [WEATHER.CONDITION] == 11 || [WEATHER.CONDITION] == 10</Expression>
+                        <Expression name="nearGreenDay">[WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14 || [WEATHER.CONDITION] == 4 || [WEATHER.CONDITION] == 6 || [WEATHER.CONDITION] == 12</Expression>
+                    </Expressions>
+                    <Compare expression="nearSnowNight">
+                        <PartImage name="landNearSnowNight" x="-27" y="359" width="503" height="91">
+                            <Image resource="land_near_snow_night" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="nearNight">
+                        <PartImage name="landNearNight" x="-27" y="359" width="503" height="91">
+                            <Image resource="land_near_night" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="nearSnowDay">
+                        <PartImage name="landNearSnowDay" x="-27" y="359" width="503" height="91">
+                            <Image resource="land_near_snow_day" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="nearGreenDay">
+                        <PartImage name="landNearGreenDay" x="-27" y="359" width="503" height="91">
+                            <Image resource="land_near_green_day" />
+                        </PartImage>
+                    </Compare>
+                    <Default>
+                        <PartImage name="landNearOvercastDay" x="-27" y="359" width="503" height="91">
+                            <Image resource="land_near_overcast_day" />
+                        </PartImage>
+                    </Default>
+                </Condition>
+
+                <Condition>
+                    <Expressions>
+                        <Expression name="heroMillsNight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))</Expression>
+                    </Expressions>
+                    <Compare expression="heroMillsNight">
+                        <Group name="heroMillsNight" x="0" y="0" width="450" height="450" alpha="255">
+                            <PartImage name="mill1TowerNight" x="64" y="276" width="12" height="135" alpha="230">
+                                <Image resource="wm_tower_night" />
+                            </PartImage>
+                            <PartImage name="mill1RotorNight" x="5" y="207" width="142" height="142" pivotX="0.5" pivotY="0.5" angle="0" alpha="230">
+                                <Transform target="angle" value="30 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_night" />
+                            </PartImage>
+                            <PartImage name="mill1HubNight" x="72" y="273" width="9" height="9" alpha="230">
+                                <Image resource="wm_hub_night" />
+                            </PartImage>
+                            <PartImage name="mill2TowerNight" x="165" y="128" width="27" height="290">
+                                <Image resource="wm_tower_night" />
+                            </PartImage>
+                            <PartImage name="mill2RotorNight" x="39" y="-19" width="304" height="304" pivotX="0.5" pivotY="0.5" angle="0">
+                                <Transform target="angle" value="60 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_night" />
+                            </PartImage>
+                            <PartImage name="mill2HubNight" x="182" y="123" width="20" height="20">
+                                <Image resource="wm_hub_night" />
+                            </PartImage>
+                        </Group>
+                    </Compare>
+                    <Default>
+                        <Group name="heroMillsDay" x="0" y="0" width="450" height="450" alpha="255">
+                            <PartImage name="mill1TowerDay" x="64" y="276" width="12" height="135" alpha="230">
+                                <Image resource="wm_tower_day" />
+                            </PartImage>
+                            <PartImage name="mill1RotorDay" x="5" y="207" width="142" height="142" pivotX="0.5" pivotY="0.5" angle="0" alpha="230">
+                                <Transform target="angle" value="30 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_day" />
+                            </PartImage>
+                            <PartImage name="mill1HubDay" x="72" y="273" width="9" height="9" alpha="230">
+                                <Image resource="wm_hub_day" />
+                            </PartImage>
+                            <PartImage name="mill2TowerDay" x="165" y="128" width="27" height="290">
+                                <Image resource="wm_tower_day" />
+                            </PartImage>
+                            <PartImage name="mill2RotorDay" x="39" y="-19" width="304" height="304" pivotX="0.5" pivotY="0.5" angle="0">
+                                <Transform target="angle" value="60 + [SECOND_MILLISECOND] * ([WEATHER.CONDITION] == 15 ? 48 : 24)" />
+                                <Image resource="wm_rotor_day" />
+                            </PartImage>
+                            <PartImage name="mill2HubDay" x="182" y="123" width="20" height="20">
+                                <Image resource="wm_hub_day" />
+                            </PartImage>
+                        </Group>
+                    </Default>
+                </Condition>
+
+                <Condition>
+                    <Expressions>
+                        <Expression name="lawnSnowNight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18))) &amp;&amp; ([WEATHER.CONDITION] == 5 || [WEATHER.CONDITION] == 7 || [WEATHER.CONDITION] == 11 || [WEATHER.CONDITION] == 10)</Expression>
+                        <Expression name="lawnNight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))</Expression>
+                        <Expression name="lawnSnowDay">[WEATHER.CONDITION] == 5 || [WEATHER.CONDITION] == 7 || [WEATHER.CONDITION] == 11 || [WEATHER.CONDITION] == 10</Expression>
+                        <Expression name="lawnGreenDay">[WEATHER.CONDITION] == 0 || [WEATHER.CONDITION] == 1 || [WEATHER.CONDITION] == 8 || [WEATHER.CONDITION] == 14 || [WEATHER.CONDITION] == 4 || [WEATHER.CONDITION] == 6 || [WEATHER.CONDITION] == 12</Expression>
+                    </Expressions>
+                    <Compare expression="lawnSnowNight">
+                        <PartImage name="lawnSnowNight" x="-26" y="364" width="502" height="84">
+                            <Image resource="lawn_snow_night" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="lawnNight">
+                        <PartImage name="lawnNight" x="-26" y="364" width="502" height="84">
+                            <Image resource="lawn_night" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="lawnSnowDay">
+                        <PartImage name="lawnSnowDay" x="-26" y="364" width="502" height="84">
+                            <Image resource="lawn_snow_day" />
+                        </PartImage>
+                    </Compare>
+                    <Compare expression="lawnGreenDay">
+                        <PartImage name="lawnGreenDay" x="-26" y="364" width="502" height="84">
+                            <Image resource="lawn_green_day" />
+                        </PartImage>
+                    </Compare>
+                    <Default>
+                        <PartImage name="lawnOvercastDay" x="-26" y="364" width="502" height="84">
+                            <Image resource="lawn_overcast_day" />
+                        </PartImage>
+                    </Default>
+                </Condition>
+            </Group>
+
+            <Group name="weatherEffects" x="0" y="0" width="450" height="450" alpha="255">
+
+                <Condition>
+                    <Expressions>
+                        <Expression name="fogNight">(([WEATHER.IS_AVAILABLE] &amp;&amp; !([WEATHER.IS_DAY])) || (!([WEATHER.IS_AVAILABLE]) &amp;&amp; ([HOUR_0_23] &lt; 7 || [HOUR_0_23] &gt; 18)))</Expression>
+                    </Expressions>
+                    <Compare expression="fogNight">
+                        <PartImage name="fogNight" x="0" y="0" width="900" height="450" alpha="0">
+                            <Transform target="x" value="0 - 450 + fract([SECONDS_IN_DAY] / 96) * 450" />
+                            <Transform target="alpha" value="([WEATHER.CONDITION] == 3 ? 230 : ([WEATHER.CONDITION] == 13 ? 115 : 0))" />
+                            <Image resource="fx_fog_night" />
+                        </PartImage>
+                    </Compare>
+                    <Default>
+                        <PartImage name="fogDay" x="0" y="0" width="900" height="450" alpha="0">
+                            <Transform target="x" value="0 - 450 + fract([SECONDS_IN_DAY] / 96) * 450" />
+                            <Transform target="alpha" value="([WEATHER.CONDITION] == 3 ? 102 : ([WEATHER.CONDITION] == 13 ? 51 : 0))" />
+                            <Image resource="fx_fog_day" />
+                        </PartImage>
+                    </Default>
+                </Condition>
+
+                <PartAnimatedImage name="rainFar" x="-40" y="-40" width="530" height="530" alpha="0">
+                    <Transform target="alpha" value="(([WEATHER.CONDITION] == 4 || [WEATHER.CONDITION] == 9) ? 150 : ([WEATHER.CONDITION] == 6 ? 100 : ([WEATHER.CONDITION] == 12 ? 82 : ([WEATHER.CONDITION] == 10 ? 100 : 0))))" />
+                    <AnimationController play="ON_VISIBLE" repeat="TRUE" loopCount="0" resumePlayBack="TRUE" />
+                    <SequenceImages frameRate="12" loopCount="0">
+                        <Image resource="fx_rain_f0" />
+                        <Image resource="fx_rain_f1" />
+                        <Image resource="fx_rain_f2" />
+                    </SequenceImages>
+                </PartAnimatedImage>
+
+                <PartAnimatedImage name="rainNear" x="0" y="0" width="450" height="450" alpha="0">
+                    <Transform target="alpha" value="(([WEATHER.CONDITION] == 4 || [WEATHER.CONDITION] == 9) ? 235 : ([WEATHER.CONDITION] == 6 ? 155 : 0))" />
+                    <AnimationController play="ON_VISIBLE" repeat="TRUE" loopCount="0" resumePlayBack="TRUE" />
+                    <SequenceImages frameRate="12" loopCount="0">
+                        <Image resource="fx_rain_f2" />
+                        <Image resource="fx_rain_f0" />
+                        <Image resource="fx_rain_f1" />
+                    </SequenceImages>
+                </PartAnimatedImage>
+
+                <PartImage name="snowFar" x="0" y="0" width="450" height="900" alpha="0">
+                    <Transform target="y" value="0 - 450 + fract([SECOND_MILLISECOND] / 10) * 450" />
+                    <Transform target="alpha" value="([WEATHER.CONDITION] == 5 ? 255 : ([WEATHER.CONDITION] == 7 ? 215 : ([WEATHER.CONDITION] == 11 ? 150 : ([WEATHER.CONDITION] == 10 ? 160 : 0))))" />
+                    <Image resource="fx_snow_far" />
+                </PartImage>
+                <PartImage name="snowNear" x="0" y="0" width="450" height="900" alpha="0">
+                    <Transform target="y" value="0 - 450 + fract([SECOND_MILLISECOND] / 6) * 450" />
+                    <Transform target="alpha" value="([WEATHER.CONDITION] == 5 ? 255 : ([WEATHER.CONDITION] == 7 ? 205 : ([WEATHER.CONDITION] == 10 ? 150 : 0)))" />
+                    <Image resource="fx_snow_near" />
+                </PartImage>
+
+                <PartImage name="lensWater" x="0" y="0" width="450" height="450" alpha="0">
+                    <Transform target="alpha" value="(([WEATHER.CONDITION] == 4 || [WEATHER.CONDITION] == 6 || [WEATHER.CONDITION] == 9 || [WEATHER.CONDITION] == 10) ? 255 : 0)" />
+                    <Image resource="overlay_waterdrop" />
+                </PartImage>
+                <PartImage name="frostFringe" x="0" y="0" width="450" height="450" alpha="0">
+                    <Transform target="alpha" value="(([WEATHER.CONDITION] == 5 || [WEATHER.CONDITION] == 7 || [WEATHER.CONDITION] == 11 || [WEATHER.CONDITION] == 10) ? 210 : ([WEATHER.IS_AVAILABLE] ? ([WEATHER.TEMPERATURE_UNIT] == 2 ? ([WEATHER.TEMPERATURE] &lt; 18 ? 235 : ([WEATHER.TEMPERATURE] &lt; 32 ? 150 : 0)) : ([WEATHER.TEMPERATURE] &lt; -8 ? 235 : ([WEATHER.TEMPERATURE] &lt; 0 ? 150 : 0))) : 0))" />
+                    <Image resource="overlay_frost" />
+                </PartImage>
+
+                <PartImage name="stormGlow" x="152" y="26" width="107" height="44" alpha="0">
+                    <Transform target="alpha" value="([WEATHER.CONDITION] == 9 ? clamp(200 - fract(([SECOND_MILLISECOND] + 0.8) / 4) * 2000, 0, 200) : 0)" />
+                    <Image resource="storm_cloud_glow" />
+                </PartImage>
+                <PartImage name="stormBoltA" x="171" y="-71" width="366" height="368" alpha="0">
+                    <Transform target="alpha" value="([WEATHER.CONDITION] == 9 ? clamp(255 - fract(([SECOND_MILLISECOND]) / 4) * 2400, 0, 255) : 0)" />
+                    <Image resource="storm_bolt_a" />
+                </PartImage>
+                <PartImage name="stormBoltB" x="73" y="-50" width="297" height="297" alpha="0">
+                    <Transform target="alpha" value="([WEATHER.CONDITION] == 9 ? clamp(255 - fract(([SECOND_MILLISECOND] + 1.6) / 4) * 2600, 0, 255) : 0)" />
+                    <Image resource="storm_bolt_b" />
+                </PartImage>
+                <PartImage name="stormBoltC" x="292" y="-47" width="256" height="247" alpha="0">
+                    <Transform target="alpha" value="([WEATHER.CONDITION] == 9 ? clamp(255 - fract(([SECOND_MILLISECOND] + 2.9) / 4) * 2600, 0, 255) : 0)" />
+                    <Image resource="storm_bolt_c" />
+                </PartImage>
+                <PartImage name="stormFlash" x="-1" y="0" width="452" height="451" alpha="0">
+                    <Transform target="alpha" value="([WEATHER.CONDITION] == 9 ? clamp(255 - fract([SECOND_MILLISECOND] / 4) * 3000, 0, 255) : 0)" />
+                    <Image resource="storm_flash" />
+                </PartImage>
+            </Group>
+
+            <ListConfiguration id="clockPosition">
+                <ListOption id="top">
+                    <Group name="clockTop" x="0" y="0" width="450" height="450" alpha="255">
+                        <PartImage name="scrimTop" x="0" y="0" width="450" height="232" pivotX="0.5" pivotY="0.5" angle="0" alpha="255">
+                            <Image resource="overlay_top_scrim" />
+                        </PartImage>
+                        <PartText name="dateShadowTop" x="77" y="154" width="300" height="26" alpha="255">
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="20" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]">
+                                    <Template>%s %s %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY_Z]" /><Parameter expression="[MONTH_S]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                        <PartText name="dateTop" x="75" y="152" width="300" height="26" alpha="255">
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="20" weight="MEDIUM" color="[CONFIGURATION.clockColour.1]">
+                                    <Template>%s %s %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY_Z]" /><Parameter expression="[MONTH_S]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                        <DigitalClock x="28" y="65" width="400" height="88" alpha="255">
+                            <TimeText align="CENTER" x="0" y="0" width="400" height="88" format="hh:mm" hourFormat="SYNC_TO_DEVICE">
+                                <Font family="SYNC_TO_DEVICE" size="66" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]" />
+                            </TimeText>
+                        </DigitalClock>
+                        <DigitalClock x="25" y="62" width="400" height="88" alpha="255">
+                            <TimeText align="CENTER" x="0" y="0" width="400" height="88" format="hh:mm" hourFormat="SYNC_TO_DEVICE">
+                                <Font family="SYNC_TO_DEVICE" size="66" weight="MEDIUM" color="[CONFIGURATION.clockColour.0]" />
+                            </TimeText>
+                        </DigitalClock>
+                        <Condition>
+                            <Expressions>
+                                <Expression name="temperatureKnownTop">[WEATHER.IS_AVAILABLE]</Expression>
+                            </Expressions>
+                            <Compare expression="temperatureKnownTop">
+                                <Group name="temperatureGroupTop" x="0" y="0" width="450" height="450" alpha="255">
+                                    <PartText name="temperatureShadowTop" x="127" y="184" width="200" height="32" alpha="255">
+                                        <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 255 : 0)" />
+                                        <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                            <Font family="SYNC_TO_DEVICE" size="26" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]">
+                                                <Template>%d°<Parameter expression="[WEATHER.TEMPERATURE]" /></Template>
+                                            </Font>
+                                        </Text>
+                                    </PartText>
+                                    <PartText name="temperatureTop" x="125" y="182" width="200" height="32" alpha="255">
+                                        <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 255 : 0)" />
+                                        <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                            <Font family="SYNC_TO_DEVICE" size="26" weight="MEDIUM" color="[CONFIGURATION.clockColour.0]">
+                                                <Template>%d°<Parameter expression="[WEATHER.TEMPERATURE]" /></Template>
+                                            </Font>
+                                        </Text>
+                                    </PartText>
+                                </Group>
+                            </Compare>
+                            <Default>
+                                <PartText name="temperatureUnknownTop" x="125" y="182" width="200" height="32" alpha="215">
+                                    <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 215 : 0)" />
+                                    <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                        <Font family="SYNC_TO_DEVICE" size="26" weight="MEDIUM" color="[CONFIGURATION.clockColour.1]">
+                                            <Shadow color="[CONFIGURATION.clockColour.2]" offsetX="1.5" offsetY="1.5" radius="2" />--°</Font>
+                                    </Text>
+                                </PartText>
+                            </Default>
+                        </Condition>
+                        <PartText name="conditionTop" x="75" y="216" width="300" height="22" alpha="0">
+                            <Transform target="alpha" value="([CONFIGURATION.showCondition] ? 235 : 0)" />
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="17" weight="NORMAL" color="[CONFIGURATION.clockColour.1]">
+                                    <Shadow color="[CONFIGURATION.clockColour.2]" offsetX="1.5" offsetY="1.5" radius="2" />
+                                    <Template>%s<Parameter expression="[WEATHER.CONDITION_NAME]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                    </Group>
+                </ListOption>
+                <ListOption id="center">
+                    <Group name="clockCenter" x="0" y="0" width="450" height="450" alpha="255">
+                        <PartText name="dateShadowCenter" x="77" y="180" width="300" height="26" alpha="255">
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="20" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]">
+                                    <Template>%s %s %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY_Z]" /><Parameter expression="[MONTH_S]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                        <PartText name="dateCenter" x="75" y="178" width="300" height="26" alpha="255">
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="20" weight="MEDIUM" color="[CONFIGURATION.clockColour.1]">
+                                    <Template>%s %s %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY_Z]" /><Parameter expression="[MONTH_S]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                        <DigitalClock x="28" y="210" width="400" height="88" alpha="255">
+                            <TimeText align="CENTER" x="0" y="0" width="400" height="88" format="hh:mm" hourFormat="SYNC_TO_DEVICE">
+                                <Font family="SYNC_TO_DEVICE" size="66" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]" />
+                            </TimeText>
+                        </DigitalClock>
+                        <DigitalClock x="25" y="207" width="400" height="88" alpha="255">
+                            <TimeText align="CENTER" x="0" y="0" width="400" height="88" format="hh:mm" hourFormat="SYNC_TO_DEVICE">
+                                <Font family="SYNC_TO_DEVICE" size="66" weight="MEDIUM" color="[CONFIGURATION.clockColour.0]" />
+                            </TimeText>
+                        </DigitalClock>
+                        <Condition>
+                            <Expressions>
+                                <Expression name="temperatureKnownCenter">[WEATHER.IS_AVAILABLE]</Expression>
+                            </Expressions>
+                            <Compare expression="temperatureKnownCenter">
+                                <Group name="temperatureGroupCenter" x="0" y="0" width="450" height="450" alpha="255">
+                                    <PartText name="temperatureShadowCenter" x="127" y="301" width="200" height="32" alpha="255">
+                                        <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 255 : 0)" />
+                                        <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                            <Font family="SYNC_TO_DEVICE" size="26" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]">
+                                                <Template>%d°<Parameter expression="[WEATHER.TEMPERATURE]" /></Template>
+                                            </Font>
+                                        </Text>
+                                    </PartText>
+                                    <PartText name="temperatureCenter" x="125" y="299" width="200" height="32" alpha="255">
+                                        <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 255 : 0)" />
+                                        <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                            <Font family="SYNC_TO_DEVICE" size="26" weight="MEDIUM" color="[CONFIGURATION.clockColour.0]">
+                                                <Template>%d°<Parameter expression="[WEATHER.TEMPERATURE]" /></Template>
+                                            </Font>
+                                        </Text>
+                                    </PartText>
+                                </Group>
+                            </Compare>
+                            <Default>
+                                <PartText name="temperatureUnknownCenter" x="125" y="299" width="200" height="32" alpha="215">
+                                    <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 215 : 0)" />
+                                    <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                        <Font family="SYNC_TO_DEVICE" size="26" weight="MEDIUM" color="[CONFIGURATION.clockColour.1]">
+                                            <Shadow color="[CONFIGURATION.clockColour.2]" offsetX="1.5" offsetY="1.5" radius="2" />--°</Font>
+                                    </Text>
+                                </PartText>
+                            </Default>
+                        </Condition>
+                        <PartText name="conditionCenter" x="75" y="152" width="300" height="22" alpha="0">
+                            <Transform target="alpha" value="([CONFIGURATION.showCondition] ? 235 : 0)" />
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="17" weight="NORMAL" color="[CONFIGURATION.clockColour.1]">
+                                    <Shadow color="[CONFIGURATION.clockColour.2]" offsetX="1.5" offsetY="1.5" radius="2" />
+                                    <Template>%s<Parameter expression="[WEATHER.CONDITION_NAME]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                    </Group>
+                </ListOption>
+                <ListOption id="bottom">
+                    <Group name="clockBottom" x="0" y="0" width="450" height="450" alpha="255">
+                        <PartImage name="scrimBottom" x="0" y="218" width="450" height="232" pivotX="0.5" pivotY="0.5" angle="180" alpha="255">
+                            <Image resource="overlay_top_scrim" />
+                        </PartImage>
+                        <PartText name="dateShadowBottom" x="77" y="216" width="300" height="26" alpha="255">
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="20" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]">
+                                    <Template>%s %s %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY_Z]" /><Parameter expression="[MONTH_S]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                        <PartText name="dateBottom" x="75" y="214" width="300" height="26" alpha="255">
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="20" weight="MEDIUM" color="[CONFIGURATION.clockColour.1]">
+                                    <Template>%s %s %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY_Z]" /><Parameter expression="[MONTH_S]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                        <DigitalClock x="28" y="246" width="400" height="88" alpha="255">
+                            <TimeText align="CENTER" x="0" y="0" width="400" height="88" format="hh:mm" hourFormat="SYNC_TO_DEVICE">
+                                <Font family="SYNC_TO_DEVICE" size="66" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]" />
+                            </TimeText>
+                        </DigitalClock>
+                        <DigitalClock x="25" y="243" width="400" height="88" alpha="255">
+                            <TimeText align="CENTER" x="0" y="0" width="400" height="88" format="hh:mm" hourFormat="SYNC_TO_DEVICE">
+                                <Font family="SYNC_TO_DEVICE" size="66" weight="MEDIUM" color="[CONFIGURATION.clockColour.0]" />
+                            </TimeText>
+                        </DigitalClock>
+                        <Condition>
+                            <Expressions>
+                                <Expression name="temperatureKnownBottom">[WEATHER.IS_AVAILABLE]</Expression>
+                            </Expressions>
+                            <Compare expression="temperatureKnownBottom">
+                                <Group name="temperatureGroupBottom" x="0" y="0" width="450" height="450" alpha="255">
+                                    <PartText name="temperatureShadowBottom" x="127" y="337" width="200" height="32" alpha="255">
+                                        <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 255 : 0)" />
+                                        <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                            <Font family="SYNC_TO_DEVICE" size="26" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]">
+                                                <Template>%d°<Parameter expression="[WEATHER.TEMPERATURE]" /></Template>
+                                            </Font>
+                                        </Text>
+                                    </PartText>
+                                    <PartText name="temperatureBottom" x="125" y="335" width="200" height="32" alpha="255">
+                                        <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 255 : 0)" />
+                                        <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                            <Font family="SYNC_TO_DEVICE" size="26" weight="MEDIUM" color="[CONFIGURATION.clockColour.0]">
+                                                <Template>%d°<Parameter expression="[WEATHER.TEMPERATURE]" /></Template>
+                                            </Font>
+                                        </Text>
+                                    </PartText>
+                                </Group>
+                            </Compare>
+                            <Default>
+                                <PartText name="temperatureUnknownBottom" x="125" y="335" width="200" height="32" alpha="215">
+                                    <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 215 : 0)" />
+                                    <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                        <Font family="SYNC_TO_DEVICE" size="26" weight="MEDIUM" color="[CONFIGURATION.clockColour.1]">
+                                            <Shadow color="[CONFIGURATION.clockColour.2]" offsetX="1.5" offsetY="1.5" radius="2" />--°</Font>
+                                    </Text>
+                                </PartText>
+                            </Default>
+                        </Condition>
+                        <PartText name="conditionBottom" x="75" y="188" width="300" height="22" alpha="0">
+                            <Transform target="alpha" value="([CONFIGURATION.showCondition] ? 235 : 0)" />
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="17" weight="NORMAL" color="[CONFIGURATION.clockColour.1]">
+                                    <Shadow color="[CONFIGURATION.clockColour.2]" offsetX="1.5" offsetY="1.5" radius="2" />
+                                    <Template>%s<Parameter expression="[WEATHER.CONDITION_NAME]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                    </Group>
+                </ListOption>
+                <ListOption id="left">
+                    <Group name="clockLeft" x="0" y="0" width="450" height="450" alpha="255">
+                        <PartImage name="scrimLeft" x="-109" y="109" width="450" height="232" pivotX="0.5" pivotY="0.5" angle="270" alpha="255">
+                            <Image resource="overlay_top_scrim" />
+                        </PartImage>
+                        <PartText name="dateShadowLeft" x="12" y="154" width="220" height="24" alpha="255">
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]">
+                                    <Template>%s %s %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY_Z]" /><Parameter expression="[MONTH_S]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                        <PartText name="dateLeft" x="10" y="152" width="220" height="24" alpha="255">
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="[CONFIGURATION.clockColour.1]">
+                                    <Template>%s %s %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY_Z]" /><Parameter expression="[MONTH_S]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                        <DigitalClock x="13" y="184" width="220" height="72" alpha="255">
+                            <TimeText align="CENTER" x="0" y="0" width="220" height="72" format="hh:mm" hourFormat="SYNC_TO_DEVICE">
+                                <Font family="SYNC_TO_DEVICE" size="54" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]" />
+                            </TimeText>
+                        </DigitalClock>
+                        <DigitalClock x="10" y="181" width="220" height="72" alpha="255">
+                            <TimeText align="CENTER" x="0" y="0" width="220" height="72" format="hh:mm" hourFormat="SYNC_TO_DEVICE">
+                                <Font family="SYNC_TO_DEVICE" size="54" weight="MEDIUM" color="[CONFIGURATION.clockColour.0]" />
+                            </TimeText>
+                        </DigitalClock>
+                        <Condition>
+                            <Expressions>
+                                <Expression name="temperatureKnownLeft">[WEATHER.IS_AVAILABLE]</Expression>
+                            </Expressions>
+                            <Compare expression="temperatureKnownLeft">
+                                <Group name="temperatureGroupLeft" x="0" y="0" width="450" height="450" alpha="255">
+                                    <PartText name="temperatureShadowLeft" x="12" y="257" width="220" height="28" alpha="255">
+                                        <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 255 : 0)" />
+                                        <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                            <Font family="SYNC_TO_DEVICE" size="22" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]">
+                                                <Template>%d°<Parameter expression="[WEATHER.TEMPERATURE]" /></Template>
+                                            </Font>
+                                        </Text>
+                                    </PartText>
+                                    <PartText name="temperatureLeft" x="10" y="255" width="220" height="28" alpha="255">
+                                        <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 255 : 0)" />
+                                        <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                            <Font family="SYNC_TO_DEVICE" size="22" weight="MEDIUM" color="[CONFIGURATION.clockColour.0]">
+                                                <Template>%d°<Parameter expression="[WEATHER.TEMPERATURE]" /></Template>
+                                            </Font>
+                                        </Text>
+                                    </PartText>
+                                </Group>
+                            </Compare>
+                            <Default>
+                                <PartText name="temperatureUnknownLeft" x="10" y="255" width="220" height="28" alpha="215">
+                                    <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 215 : 0)" />
+                                    <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                        <Font family="SYNC_TO_DEVICE" size="22" weight="MEDIUM" color="[CONFIGURATION.clockColour.1]">
+                                            <Shadow color="[CONFIGURATION.clockColour.2]" offsetX="1.5" offsetY="1.5" radius="2" />--°</Font>
+                                    </Text>
+                                </PartText>
+                            </Default>
+                        </Condition>
+                        <PartText name="conditionLeft" x="10" y="283" width="220" height="20" alpha="0">
+                            <Transform target="alpha" value="([CONFIGURATION.showCondition] ? 235 : 0)" />
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="15" weight="NORMAL" color="[CONFIGURATION.clockColour.1]">
+                                    <Shadow color="[CONFIGURATION.clockColour.2]" offsetX="1.5" offsetY="1.5" radius="2" />
+                                    <Template>%s<Parameter expression="[WEATHER.CONDITION_NAME]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                    </Group>
+                </ListOption>
+                <ListOption id="right">
+                    <Group name="clockRight" x="0" y="0" width="450" height="450" alpha="255">
+                        <PartImage name="scrimRight" x="109" y="109" width="450" height="232" pivotX="0.5" pivotY="0.5" angle="90" alpha="255">
+                            <Image resource="overlay_top_scrim" />
+                        </PartImage>
+                        <PartText name="dateShadowRight" x="222" y="154" width="220" height="24" alpha="255">
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]">
+                                    <Template>%s %s %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY_Z]" /><Parameter expression="[MONTH_S]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                        <PartText name="dateRight" x="220" y="152" width="220" height="24" alpha="255">
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="18" weight="MEDIUM" color="[CONFIGURATION.clockColour.1]">
+                                    <Template>%s %s %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY_Z]" /><Parameter expression="[MONTH_S]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                        <DigitalClock x="223" y="184" width="220" height="72" alpha="255">
+                            <TimeText align="CENTER" x="0" y="0" width="220" height="72" format="hh:mm" hourFormat="SYNC_TO_DEVICE">
+                                <Font family="SYNC_TO_DEVICE" size="54" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]" />
+                            </TimeText>
+                        </DigitalClock>
+                        <DigitalClock x="220" y="181" width="220" height="72" alpha="255">
+                            <TimeText align="CENTER" x="0" y="0" width="220" height="72" format="hh:mm" hourFormat="SYNC_TO_DEVICE">
+                                <Font family="SYNC_TO_DEVICE" size="54" weight="MEDIUM" color="[CONFIGURATION.clockColour.0]" />
+                            </TimeText>
+                        </DigitalClock>
+                        <Condition>
+                            <Expressions>
+                                <Expression name="temperatureKnownRight">[WEATHER.IS_AVAILABLE]</Expression>
+                            </Expressions>
+                            <Compare expression="temperatureKnownRight">
+                                <Group name="temperatureGroupRight" x="0" y="0" width="450" height="450" alpha="255">
+                                    <PartText name="temperatureShadowRight" x="222" y="257" width="220" height="28" alpha="255">
+                                        <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 255 : 0)" />
+                                        <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                            <Font family="SYNC_TO_DEVICE" size="22" weight="MEDIUM" color="[CONFIGURATION.clockColour.2]">
+                                                <Template>%d°<Parameter expression="[WEATHER.TEMPERATURE]" /></Template>
+                                            </Font>
+                                        </Text>
+                                    </PartText>
+                                    <PartText name="temperatureRight" x="220" y="255" width="220" height="28" alpha="255">
+                                        <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 255 : 0)" />
+                                        <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                            <Font family="SYNC_TO_DEVICE" size="22" weight="MEDIUM" color="[CONFIGURATION.clockColour.0]">
+                                                <Template>%d°<Parameter expression="[WEATHER.TEMPERATURE]" /></Template>
+                                            </Font>
+                                        </Text>
+                                    </PartText>
+                                </Group>
+                            </Compare>
+                            <Default>
+                                <PartText name="temperatureUnknownRight" x="220" y="255" width="220" height="28" alpha="215">
+                                    <Transform target="alpha" value="([CONFIGURATION.showTemperature] ? 215 : 0)" />
+                                    <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                        <Font family="SYNC_TO_DEVICE" size="22" weight="MEDIUM" color="[CONFIGURATION.clockColour.1]">
+                                            <Shadow color="[CONFIGURATION.clockColour.2]" offsetX="1.5" offsetY="1.5" radius="2" />--°</Font>
+                                    </Text>
+                                </PartText>
+                            </Default>
+                        </Condition>
+                        <PartText name="conditionRight" x="220" y="283" width="220" height="20" alpha="0">
+                            <Transform target="alpha" value="([CONFIGURATION.showCondition] ? 235 : 0)" />
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font family="SYNC_TO_DEVICE" size="15" weight="NORMAL" color="[CONFIGURATION.clockColour.1]">
+                                    <Shadow color="[CONFIGURATION.clockColour.2]" offsetX="1.5" offsetY="1.5" radius="2" />
+                                    <Template>%s<Parameter expression="[WEATHER.CONDITION_NAME]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                    </Group>
+                </ListOption>
+            </ListConfiguration>
+
+            <Group name="clockExtras" x="0" y="0" width="450" height="450" alpha="255">
+                <PartImage name="brandMark" x="170" y="420" width="110" height="26" alpha="0">
+                    <Transform target="alpha" value="([CONFIGURATION.showBranding] ? 150 : 0)" />
+                    <Image resource="logo_mark" />
+                </PartImage>
+                <PartImage name="weatherErrorDot" x="218" y="398" width="14" height="14" alpha="0">
+                    <Transform target="alpha" value="((!([WEATHER.IS_AVAILABLE]) || [WEATHER.IS_ERROR]) ? 210 : 0)" />
+                    <Image resource="weather_error_dot" />
+                </PartImage>
+            </Group>
+        </Group>
+
+        <ComplicationSlot name="leftSlot" slotId="1" x="98" y="374" width="52" height="52"
+                          supportedTypes="SHORT_TEXT RANGED_VALUE EMPTY"
+                          displayName="@string/sr_complication_left" isCustomizable="TRUE" alpha="255">
+            <Variant mode="AMBIENT" target="alpha" value="0" />
+            <BoundingOval x="98" y="374" width="52" height="52" />
+            <Complication type="SHORT_TEXT">
+                <PartText name="leftShortText" x="0" y="12" width="52" height="28" alpha="255">
+                    <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                        <Font family="SYNC_TO_DEVICE" size="20" weight="MEDIUM" color="#FFFFFFFF">
+                            <Shadow color="#99000000" offsetX="1.5" offsetY="1.5" radius="2" />
+                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                        </Font>
+                    </Text>
+                </PartText>
+            </Complication>
+            <Complication type="RANGED_VALUE">
+                <PartText name="leftRanged" x="0" y="12" width="52" height="28" alpha="255">
+                    <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                        <Font family="SYNC_TO_DEVICE" size="20" weight="MEDIUM" color="#FFFFFFFF">
+                            <Shadow color="#99000000" offsetX="1.5" offsetY="1.5" radius="2" />
+                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                        </Font>
+                    </Text>
+                </PartText>
+            </Complication>
+        </ComplicationSlot>
+
+        <ComplicationSlot name="rightSlot" slotId="2" x="300" y="374" width="52" height="52"
+                          supportedTypes="SHORT_TEXT RANGED_VALUE EMPTY"
+                          displayName="@string/sr_complication_right" isCustomizable="TRUE" alpha="255">
+            <Variant mode="AMBIENT" target="alpha" value="0" />
+            <BoundingOval x="300" y="374" width="52" height="52" />
+            <Complication type="SHORT_TEXT">
+                <PartText name="rightShortText" x="0" y="12" width="52" height="28" alpha="255">
+                    <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                        <Font family="SYNC_TO_DEVICE" size="20" weight="MEDIUM" color="#FFFFFFFF">
+                            <Shadow color="#99000000" offsetX="1.5" offsetY="1.5" radius="2" />
+                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                        </Font>
+                    </Text>
+                </PartText>
+            </Complication>
+            <Complication type="RANGED_VALUE">
+                <PartText name="rightRanged" x="0" y="12" width="52" height="28" alpha="255">
+                    <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                        <Font family="SYNC_TO_DEVICE" size="20" weight="MEDIUM" color="#FFFFFFFF">
+                            <Shadow color="#99000000" offsetX="1.5" offsetY="1.5" radius="2" />
+                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                        </Font>
+                    </Text>
+                </PartText>
+            </Complication>
+        </ComplicationSlot>
+
+        <Group name="ambient" x="0" y="0" width="450" height="450" alpha="0">
+            <Variant mode="AMBIENT" target="alpha" value="255" />
+
+            <PartImage name="ambientTower" x="213" y="298" width="13" height="143" alpha="150">
+                <Image resource="wm_tower_ambient" />
+            </PartImage>
+            <PartImage name="ambientRotor" x="150" y="225" width="150" height="150" alpha="150">
+                <Image resource="wm_rotor_ambient" />
+            </PartImage>
+            <PartText name="ambientDate" x="75" y="152" width="300" height="26" alpha="255">
+                <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                    <Font family="SYNC_TO_DEVICE" size="20" weight="NORMAL" color="#FF6E7889">
+                        <Template>%s %s %s<Parameter expression="[DAY_OF_WEEK_S]" /><Parameter expression="[DAY_Z]" /><Parameter expression="[MONTH_S]" /></Template>
+                    </Font>
+                </Text>
+            </PartText>
+            <DigitalClock x="25" y="62" width="400" height="88" alpha="255">
+                <TimeText align="CENTER" x="0" y="0" width="400" height="88" format="hh:mm" hourFormat="SYNC_TO_DEVICE">
+                    <Font family="SYNC_TO_DEVICE" size="66" weight="LIGHT" color="#FFB6C0D4" />
+                </TimeText>
+            </DigitalClock>
+        </Group>
+
+    </Scene>
+</WatchFace>
