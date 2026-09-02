@@ -23,6 +23,9 @@ WeatherWallOriginal.zip
 keystore.properties
 signing.properties
 app/play/
+app/github/
+wearWatchFace/release/
+wearWatchFace/debug/
 
 # Wear OS tooling downloaded on demand by tools/wear_assets/fetch_wff_tools.sh
 tools/wff/*.jar

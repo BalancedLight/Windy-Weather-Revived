@@ -11,7 +11,7 @@
   },
   "totals": {
     "assets": 74,
-    "packaged_bytes": 1967879,
+    "packaged_bytes": 1836960,
     "decoded_bytes_all_resources": 24154272
   },
   "assets": {
@@ -1575,15 +1575,15 @@
       ]
     },
     "preview_windy": {
-      "output": "wearWatchFace/src/main/res/drawable-nodpi/preview_windy.png",
+      "output": "wearWatchFace/src/main/res/drawable-nodpi/preview_windy.webp",
       "sources": [
         {
           "resource": "composite",
           "sha256": "derived"
         }
       ],
-      "output_sha256": "a54cfcddb1ef1f1ee6f7e59870012a441cd7a472634b43c989efbe7c02d21bed",
-      "output_bytes": 157677,
+      "output_sha256": "373c64b54461c3392ab89473ed1a49e0e90bd8baaafefc194bd7f20572ba6991",
+      "output_bytes": 26758,
       "width": 450,
       "height": 450,
       "crop": [
@@ -1593,7 +1593,7 @@
         450
       ],
       "scale": 1.0,
-      "format": "PNG",
+      "format": "WEBP_LOSSY_Q92",
       "pixel_format": "RGB",
       "decoded_bytes": 405000,
       "animation_frames": 1,

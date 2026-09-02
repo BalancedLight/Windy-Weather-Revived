@@ -1045,12 +1045,12 @@ def build_config_icons(builder):
 
 def write_preview_drawable(builder):
     image = compose_scene(builder, "D10_MOSTLY_CLEAR", False)
-    path = os.path.join(OUTPUT_DIR, "preview_windy.png")
-    image.convert("RGB").save(path, format="PNG", optimize=True)
+    path = os.path.join(OUTPUT_DIR, "preview_windy.webp")
+    image.convert("RGB").save(path, format="WEBP", method=6, lossless=False, quality=92)
     with open(path, "rb") as handle:
         digest = hashlib.sha256(handle.read()).hexdigest()
     builder.records["preview_windy"] = {
-        "output": "wearWatchFace/src/main/res/drawable-nodpi/preview_windy.png",
+        "output": "wearWatchFace/src/main/res/drawable-nodpi/preview_windy.webp",
         "sources": [{"resource": "composite", "sha256": "derived"}],
         "output_sha256": digest,
         "output_bytes": os.path.getsize(path),
@@ -1058,7 +1058,7 @@ def write_preview_drawable(builder):
         "height": FACE,
         "crop": [0, 0, FACE, FACE],
         "scale": 1.0,
-        "format": "PNG",
+        "format": "WEBP_LOSSY_Q92",
         "pixel_format": "RGB",
         "decoded_bytes": FACE * FACE * 2,
         "animation_frames": 1,
