@@ -11,14 +11,14 @@ internal abstract class BaseConfigChooser(protected var mConfigSpec: IntArray?) 
         eGLConfigArr: Array<EGLConfig?>?
     ): EGLConfig?
 
-    override fun chooseConfig(egl: EGL10, display: EGLDisplay?): EGLConfig {
+    override fun chooseConfig(egl10: EGL10, eGLDisplay: EGLDisplay?): EGLConfig {
         val num_config = IntArray(1)
-        egl.eglChooseConfig(display, this.mConfigSpec, null, 0, num_config)
+        egl10.eglChooseConfig(eGLDisplay, this.mConfigSpec, null, 0, num_config)
         val numConfigs = num_config[0]
         kotlin.require(numConfigs > 0) { "No configs match configSpec" }
         val configs: Array<EGLConfig?> = arrayOfNulls<EGLConfig>(numConfigs)
-        egl.eglChooseConfig(display, this.mConfigSpec, configs, numConfigs, num_config)
-        return chooseConfig(egl, display, configs) ?: throw IllegalArgumentException("No config chosen")
+        egl10.eglChooseConfig(eGLDisplay, this.mConfigSpec, configs, numConfigs, num_config)
+        return chooseConfig(egl10, eGLDisplay, configs) ?: throw IllegalArgumentException("No config chosen")
     }
 
     open class ComponentSizeChooser(
@@ -64,20 +64,20 @@ internal abstract class BaseConfigChooser(protected var mConfigSpec: IntArray?) 
         }
 
         override fun chooseConfig(
-            egl: EGL10,
-            display: EGLDisplay?,
-            configs: Array<EGLConfig?>?
+            egl10: EGL10,
+            eGLDisplay: EGLDisplay?,
+            eGLConfigArr: Array<EGLConfig?>?
         ): EGLConfig? {
             var closestConfig: EGLConfig? = null
             var closestDistance = 1000
-            for (config in configs ?: emptyArray()) {
-                val d = findConfigAttrib(egl, display, config, 12325, 0)
-                val s = findConfigAttrib(egl, display, config, 12326, 0)
+            for (config in eGLConfigArr ?: emptyArray()) {
+                val d = findConfigAttrib(egl10, eGLDisplay, config, 12325, 0)
+                val s = findConfigAttrib(egl10, eGLDisplay, config, 12326, 0)
                 if (d >= this.mDepthSize && s >= this.mStencilSize) {
-                    val r = findConfigAttrib(egl, display, config, 12324, 0)
-                    val g = findConfigAttrib(egl, display, config, 12323, 0)
-                    val b = findConfigAttrib(egl, display, config, 12322, 0)
-                    val a = findConfigAttrib(egl, display, config, 12321, 0)
+                    val r = findConfigAttrib(egl10, eGLDisplay, config, 12324, 0)
+                    val g = findConfigAttrib(egl10, eGLDisplay, config, 12323, 0)
+                    val b = findConfigAttrib(egl10, eGLDisplay, config, 12322, 0)
+                    val a = findConfigAttrib(egl10, eGLDisplay, config, 12321, 0)
                     val distance: Int =
                         Math.abs(r - this.mRedSize) + Math.abs(g - this.mGreenSize) + Math.abs(b - this.mBlueSize) + Math.abs(
                             a - this.mAlphaSize

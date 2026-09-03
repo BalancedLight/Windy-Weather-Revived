@@ -6,12 +6,12 @@ import javax.microedition.khronos.egl.EGLContext
 import javax.microedition.khronos.egl.EGLDisplay
 
 internal class DefaultContextFactory : EGLContextFactory {
-    override fun createContext(egl: EGL10, display: EGLDisplay?, config: EGLConfig?): EGLContext {
-        return egl.eglCreateContext(display, config, EGL10.EGL_NO_CONTEXT, null)
+    override fun createContext(egl10: EGL10, eGLDisplay: EGLDisplay?, eGLConfig: EGLConfig?): EGLContext {
+        return egl10.eglCreateContext(eGLDisplay, eGLConfig, EGL10.EGL_NO_CONTEXT, null)
     }
 
-    override fun destroyContext(egl: EGL10, display: EGLDisplay?, context: EGLContext?) {
-        egl.eglDestroyContext(display, context)
+    override fun destroyContext(egl10: EGL10, eGLDisplay: EGLDisplay?, eGLContext: EGLContext?) {
+        egl10.eglDestroyContext(eGLDisplay, eGLContext)
     }
 }
 

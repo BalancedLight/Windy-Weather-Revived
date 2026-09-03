@@ -2070,18 +2070,6 @@ class SecretWallpaperService : GLWallpaperService() {
         var x_a_cloud_B_4: Float = 0.0f
         var x_a_cloud_B_5: Float = 0.0f
         var x_a_cloud_B_6: Float = 0.0f
-        var x_a_cloud_B_7: Float = 0.0f
-        var y_a_cloud_A_1: Float = 0.0f
-        var y_a_cloud_A_2: Float = 0.0f
-        var y_a_cloud_A_3: Float = 0.0f
-        var y_a_cloud_A_4: Float = 0.0f
-        var y_a_cloud_B_1: Float = 0.0f
-        var y_a_cloud_B_2: Float = 0.0f
-        var y_a_cloud_B_3: Float = 0.0f
-        var y_a_cloud_B_4: Float = 0.0f
-        var y_a_cloud_B_5: Float = 0.0f
-        var y_a_cloud_B_6: Float = 0.0f
-        var y_a_cloud_B_7: Float = 0.0f
         var x_a_meteor: Float = 0.0f
         var y_a_meteor: Float = 0.0f
         var scale_a_meteor: Float = 0.0f
@@ -3539,19 +3527,12 @@ class SecretWallpaperService : GLWallpaperService() {
                     2 -> weight = 0.2f
                     else -> Log.d("WindyWeather", "distance not set")
                 }
-                val landscapeXShift = if (this@CSPRenderer.mIsPortrait) 0.0f else -0.12f
-                val landscapeYShift = if (this@CSPRenderer.mIsPortrait) 0.0f else 0.08f
-                val landscapeYScale = if (this@CSPRenderer.mIsPortrait) 1.0f else 1.14f
                 gl.glTranslatef(
-                    (this.mfXpos - 1.5f) + this@CSPRenderer.getGroundParallaxShift(weight) + landscapeXShift,
-                    this.mfYpos + landscapeYShift,
+                    (this.mfXpos - 1.5f) + this@CSPRenderer.getGroundParallaxShift(weight),
+                    this.mfYpos,
                     this.mfZpos
                 )
-                gl.glScalef(
-                    this.mfXscale * this@CSPRenderer.mfLandscape,
-                    this.mfYscale * landscapeYScale,
-                    0.0f
-                )
+                gl.glScalef(this.mfXscale, this.mfYscale, 0.0f)
             }
 
 
@@ -3564,19 +3545,12 @@ class SecretWallpaperService : GLWallpaperService() {
                     2 -> weight = 0.2f
                     else -> Log.d("WindyWeather", "distance not set")
                 }
-                val landscapeXShift = if (this@CSPRenderer.mIsPortrait) 0.0f else -0.12f
-                val landscapeYShift = if (this@CSPRenderer.mIsPortrait) 0.0f else 0.08f
-                val landscapeYScale = if (this@CSPRenderer.mIsPortrait) 1.0f else 1.14f
                 gl.glTranslatef(
-                    (this.mfXpos - 1.5f) + this@CSPRenderer.getGroundParallaxShift(weight) + landscapeXShift + extraX,
-                    this.mfYpos + landscapeYShift + extraY,
+                    (this.mfXpos - 1.5f) + this@CSPRenderer.getGroundParallaxShift(weight) + extraX,
+                    this.mfYpos + extraY,
                     this.mfZpos
                 )
-                gl.glScalef(
-                    this.mfXscale * this@CSPRenderer.mfLandscape,
-                    this.mfYscale * landscapeYScale,
-                    0.0f
-                )
+                gl.glScalef(this.mfXscale, this.mfYscale, 0.0f)
             }
 
             fun setAttribute(xPos: Float, yPos: Float, zPos: Float, xScale: Float, yScale: Float) {
@@ -3668,12 +3642,6 @@ class SecretWallpaperService : GLWallpaperService() {
                         fColor = 0.2f
                     }
                 }
-                var landscapeWingYOffset = 0.0f
-                if (!this@CSPRenderer.mIsPortrait) {
-                    val landscapeYScale = 1.14f
-                    // Keep wing/hub attached as pillar height scales in landscape.
-                    landscapeWingYOffset = this.mPillar!!.mfYscale * 8.0f * (landscapeYScale - 1.0f)
-                }
                 if (this.mnDistance == 0) {
                     this.mPillar!!.moveTo(gl, this.mnDistance)
                     if (!this.mbFlip) {
@@ -3713,7 +3681,7 @@ class SecretWallpaperService : GLWallpaperService() {
                         )
                     }
                 }
-                this.mWing!!.moveToWithOffset(gl, this.mnDistance, 0.0f, landscapeWingYOffset)
+                this.mWing!!.moveTo(gl, this.mnDistance)
                 gl.glRotatef(this.mfFanAngle, 0.0f, 0.0f, 1.0f)
                 if (this.mnDistance == 0) {
                     this@CSPRenderer.windmill_wing!!.shortdraw(
@@ -3733,7 +3701,7 @@ class SecretWallpaperService : GLWallpaperService() {
                     )
                 }
                 if (this.mnDistance == 0) {
-                    this.mCenter!!.moveToWithOffset(gl, this.mnDistance, 0.0f, landscapeWingYOffset)
+                    this.mCenter!!.moveTo(gl, this.mnDistance)
                     this@CSPRenderer.windmill_center_01!!.shortdraw(
                         gl,
                         tint.red * fColor,
@@ -3745,6 +3713,116 @@ class SecretWallpaperService : GLWallpaperService() {
             }
         }
 
+        private fun drawGroundBand(
+            gl10: GL10,
+            centreX: Float,
+            centreY: Float,
+            depth: Float,
+            scaleX: Float,
+            scaleY: Float,
+            draw: () -> Unit
+        ) {
+            val quadHalfWidth = 4.0f * scaleX
+            val tiles = SceneFraming.tilesEachSide(depth, this.mSurfaceAspect, quadHalfWidth, centreX)
+            for (i in -tiles..tiles) {
+                val mirrored = (i % 2) != 0
+                gl10.glLoadIdentity()
+                gl10.glTranslatef(centreX + (i * 2.0f * quadHalfWidth), centreY, -depth)
+                gl10.glScalef(if (mirrored) -scaleX else scaleX, scaleY, 0.0f)
+                if (mirrored) {
+                    gl10.glFrontFace(2304)
+                }
+                draw()
+                if (mirrored) {
+                    gl10.glFrontFace(2305)
+                }
+            }
+        }
+
+        private var cloudPhaseA_1 = -24.0f
+        private var cloudPhaseA_2 = -5.5f
+        private var cloudPhaseA_3 = 2.5f
+        private var cloudPhaseA_4 = 13.0f
+        private var cloudPhaseB_1 = 4.0f
+        private var cloudPhaseB_2 = -10.0f
+        private var cloudPhaseB_3 = -7.5f
+        private var cloudPhaseB_4 = -5.0f
+        private var cloudPhaseB_5 = -15.0f
+        private var cloudPhaseB_6 = -30.0f
+        private var cloudDriftSeeded = false
+        private var cloudDriftAspect = 0.0f
+
+        /**
+         * Advances every cloud by one frame step and wraps any that has left on the left back to
+         * off-screen right.
+         *
+         * The construction this replaced derived X from `mFrameCnt` and relocated each cloud at a
+         * hard-coded frame threshold.  Travel per cycle was pinned to `0.025 * FRAME_COUNTER_WRAP`
+         * = 50.05 world units whatever the orientation, but a landscape frustum is around 66 units
+         * wide, so a cloud could not cross it: the relocation landed on screen and the counter
+         * rollover added a second jump of up to 55 units.  Wrapping against the real frustum means
+         * the jump is always off screen at any aspect ratio.
+         */
+        private fun advanceCloudDrift(frameStep: Float) {
+            if (!this.cloudDriftSeeded || this.cloudDriftAspect != this.mSurfaceAspect) {
+                seedCloudDrift()
+            }
+            val step = if (frameStep < 0.0f) 0.0f else frameStep
+            this.x_a_cloud_A_1 = driftCloud(this.x_a_cloud_A_1, 27.0f, 4.0f, step)
+            this.x_a_cloud_A_2 = driftCloud(this.x_a_cloud_A_2, 27.3f, 3.6f, step)
+            this.x_a_cloud_A_3 = driftCloud(this.x_a_cloud_A_3, 27.5f, 2.8f, step)
+            this.x_a_cloud_A_4 = driftCloud(this.x_a_cloud_A_4, 27.0f, 2.8f, step)
+            this.x_a_cloud_B_1 = driftCloud(this.x_a_cloud_B_1, 26.9f, 4.4f, step)
+            this.x_a_cloud_B_2 = driftCloud(this.x_a_cloud_B_2, 27.1f, 3.4f, step)
+            this.x_a_cloud_B_3 = driftCloud(this.x_a_cloud_B_3, 27.4f, 2.8f, step)
+            this.x_a_cloud_B_4 = driftCloud(this.x_a_cloud_B_4, 27.6f, 3.2f, step)
+            this.x_a_cloud_B_5 = driftCloud(this.x_a_cloud_B_5, 27.7f, 3.8f, step)
+            this.x_a_cloud_B_6 = driftCloud(this.x_a_cloud_B_6, 27.8f, 4.4f, step)
+        }
+
+        private fun seedCloudDrift() {
+            this.cloudDriftSeeded = true
+            this.cloudDriftAspect = this.mSurfaceAspect
+            this.x_a_cloud_A_1 = seedCloud(this.cloudPhaseA_1, 27.0f, 4.0f)
+            this.x_a_cloud_A_2 = seedCloud(this.cloudPhaseA_2, 27.3f, 3.6f)
+            this.x_a_cloud_A_3 = seedCloud(this.cloudPhaseA_3, 27.5f, 2.8f)
+            this.x_a_cloud_A_4 = seedCloud(this.cloudPhaseA_4, 27.0f, 2.8f)
+            this.x_a_cloud_B_1 = seedCloud(this.cloudPhaseB_1, 26.9f, 4.4f)
+            this.x_a_cloud_B_2 = seedCloud(this.cloudPhaseB_2, 27.1f, 3.4f)
+            this.x_a_cloud_B_3 = seedCloud(this.cloudPhaseB_3, 27.4f, 2.8f)
+            this.x_a_cloud_B_4 = seedCloud(this.cloudPhaseB_4, 27.6f, 3.2f)
+            this.x_a_cloud_B_5 = seedCloud(this.cloudPhaseB_5, 27.7f, 3.8f)
+            this.x_a_cloud_B_6 = seedCloud(this.cloudPhaseB_6, 27.8f, 4.4f)
+        }
+
+        private fun cloudHalfWidth(scaleX: Float): Float = 2.0f * scaleX
+
+        private fun driftCloud(x: Float, depth: Float, scaleX: Float, step: Float): Float {
+            val halfWidth = cloudHalfWidth(scaleX)
+            val leftLimit = SceneFraming.cloudLeftLimit(depth, this.mSurfaceAspect, halfWidth)
+            val span = SceneFraming.cloudSpan(depth, this.mSurfaceAspect, halfWidth)
+            var next = x - (SceneFraming.CLOUD_SPEED * step)
+            while (next < leftLimit) {
+                next += span
+            }
+            return next
+        }
+
+        /** Spreads the opening arrangement across the cycle so the sky does not start clumped. */
+        private fun seedCloud(phase: Float, depth: Float, scaleX: Float): Float {
+            val halfWidth = cloudHalfWidth(scaleX)
+            val leftLimit = SceneFraming.cloudLeftLimit(depth, this.mSurfaceAspect, halfWidth)
+            val span = SceneFraming.cloudSpan(depth, this.mSurfaceAspect, halfWidth)
+            var seeded = phase
+            while (seeded < leftLimit) {
+                seeded += span
+            }
+            while (seeded >= leftLimit + span) {
+                seeded -= span
+            }
+            return seeded
+        }
+
         private fun drawObjects(gl10: GL10, animationFrameStep: Float) {
             var f: Float
             var f2: Float
@@ -3752,14 +3830,8 @@ class SecretWallpaperService : GLWallpaperService() {
             var f4: Float
             var f5: Float
             val fSqrt: Float
-            val landscapeSceneFill =
-                if (this.mIsPortrait) 1.0f else clamp(1.0f, this.mSurfaceAspect / 1.7777778f, 1.28f)
-            val landscapeGroundFill =
-                if (this.mIsPortrait) 1.0f else clamp(1.0f, this.mSurfaceAspect / 1.7777778f, 1.45f)
             val landscapeOverlayFill =
                 if (this.mIsPortrait) 1.0f else clamp(1.0f, this.mSurfaceAspect / 1.7777778f, 1.50f)
-            val cloudWrapSpan = if (this.mIsPortrait) 50.0f else 84.0f * landscapeSceneFill
-            val cloudWrapSpanShort = if (this.mIsPortrait) 40.0f else 72.0f * landscapeSceneFill
             val loadedWeather = this.loadedImageset
             val loadedNight = this.loadedImagesetDayNight
             val foregroundTint = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.foregroundTwilightTint(
@@ -3807,8 +3879,7 @@ class SecretWallpaperService : GLWallpaperService() {
             gl10.glEnableClientState(32888)
             gl10.glLoadIdentity()
             gl10.glTranslatef((-1.5f) + skyShift, -2.3f, -30.0f)
-            val skyScaleX =
-                if (this.mIsPortrait) 2.0f * this.mfLandscape else 2.2f * this.mfLandscape * landscapeSceneFill
+            val skyScaleX = SceneFraming.skyScaleX(30.0f, this.mSurfaceAspect, -1.5f + skyShift, 8.0f, 2.0f)
             gl10.glScalef(skyScaleX, 2.0f, 0.0f)
             if (dynamicSky) {
                 this.skyGradient!!.ensureUpdated(
@@ -3855,7 +3926,11 @@ class SecretWallpaperService : GLWallpaperService() {
             if (!dynamicSky && clearFamilyScene && (loadedNight || twilightStarsAlpha > 0.0f)) {
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(1.3f + skyShift, 7.0f, -29.9f)
-                gl10.glScalef(1.8f * this.mfLandscape, 0.45f, 0.0f)
+                gl10.glScalef(
+                    SceneFraming.skyScaleX(29.9f, this.mSurfaceAspect, 1.3f + skyShift, 8.0f, 1.8f),
+                    0.45f,
+                    0.0f
+                )
                 val starAlpha = if (loadedNight) 1.0f else twilightStarsAlpha
                 this.sky_stars!!.shortdraw(gl10, starAlpha, starAlpha)
             }
@@ -3960,7 +4035,7 @@ class SecretWallpaperService : GLWallpaperService() {
                                     -28.0f
                                 )
                                 gl10.glScalef(
-                                    this.mfLandscape * this.size_star[i2],
+                                    this.size_star[i2],
                                     this.size_star[i2],
                                     0.0f
                                 )
@@ -4000,7 +4075,7 @@ class SecretWallpaperService : GLWallpaperService() {
                         gl10.glLoadIdentity()
                         gl10.glTranslatef(this.x_a_meteor + skyShift, this.y_a_meteor, -28.0f)
                         gl10.glScalef(
-                            this.mfLandscape * this.scale_a_meteor,
+                            this.scale_a_meteor,
                             this.scale_a_meteor,
                             0.0f
                         )
@@ -4009,119 +4084,19 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
             // Mostly clear owns this cloud pass; clear sky scenes stay cloud-free.
             if (loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D10_MOSTLY_CLEAR.ordinal) {
-                if (this.mFrameCnt < 100) {
-                    this.x_a_cloud_A_3 = (((-0.025) * (this.mFrameCnt.toDouble())) - 18.0).toFloat()
-                } else {
-                    this.x_a_cloud_A_3 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) - 18.0)).toFloat()
-                }
-                if (this.mFrameCnt < 530) {
-                    this.x_a_cloud_A_1 = (((-0.025) * (this.mFrameCnt.toDouble())) - 11.0).toFloat()
-                } else {
-                    this.x_a_cloud_A_1 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) - 11.0)).toFloat()
-                }
-                if (this.mFrameCnt < 400) {
-                    this.x_a_cloud_B_3 = (((-0.025) * (this.mFrameCnt.toDouble())) - 9.0).toFloat()
-                } else {
-                    this.x_a_cloud_B_3 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) - 9.0)).toFloat()
-                }
-                if (this.mFrameCnt < 850) {
-                    this.x_a_cloud_B_2 = (((-0.025) * (this.mFrameCnt.toDouble())) + 2.0).toFloat()
-                } else {
-                    this.x_a_cloud_B_2 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) + 2.0)).toFloat()
-                }
-                if (this.mFrameCnt < 1000) {
-                    this.x_a_cloud_B_1 = (((-0.025) * (this.mFrameCnt.toDouble())) + 5.0).toFloat()
-                } else {
-                    this.x_a_cloud_B_1 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) + 5.0)).toFloat()
-                }
-                if (this.mFrameCnt < 1080) {
-                    this.x_a_cloud_A_2 = (((-0.025) * (this.mFrameCnt.toDouble())) + 8.0).toFloat()
-                } else {
-                    this.x_a_cloud_A_2 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) + 8.0)).toFloat()
-                }
-                if (this.mFrameCnt < 1450) {
-                    this.x_a_cloud_A_4 = (((-0.025) * (this.mFrameCnt.toDouble())) + 13.0).toFloat()
-                } else {
-                    this.x_a_cloud_A_4 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) + 13.0)).toFloat()
-                }
+                advanceCloudDrift(animationFrameStep)
                 this.fAlpha = if (loadedNight) 0.45f else 0.3f
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(this.x_a_cloud_A_3 + skyShift, 4.5f, -27.0f)
-                gl10.glScalef(2.8f * this.mfLandscape, 2.8f, 0.0f)
+                gl10.glScalef(2.8f, 2.8f, 0.0f)
                 this.cloud1!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                 this.fAlpha = if (loadedNight) 0.6f else 0.45f
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(this.x_a_cloud_B_1 + skyShift, -3.2f, -26.0f)
-                gl10.glScalef(2.8f * this.mfLandscape, 2.8f, 0.0f)
+                gl10.glScalef(2.8f, 2.8f, 0.0f)
                 this.cloud2!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
             } else if (loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D2_CLOUDY.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D3_DREARY.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D4_FOG.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D5_RAIN_SHOWERS.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D6_THUNDERSTORMS.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D7_FLURRIES_SNOW.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D8_ICE_COLD.ordinal || loadedWeather == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D9_SLEET.ordinal) {
-                if (this.mFrameCnt < 360) {
-                    this.x_a_cloud_A_1 = (((-0.025) * (this.mFrameCnt.toDouble())) - 24.0).toFloat()
-                } else {
-                    this.x_a_cloud_A_1 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) - 24.0)).toFloat()
-                }
-                if (this.mFrameCnt < 1100) {
-                    this.x_a_cloud_B_1 = (((-0.025) * (this.mFrameCnt.toDouble())) + 4.0).toFloat()
-                } else {
-                    this.x_a_cloud_B_1 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) + 4.0)).toFloat()
-                }
-                if (this.mFrameCnt < 400) {
-                    this.x_a_cloud_B_2 = (((-0.025) * (this.mFrameCnt.toDouble())) - 10.0).toFloat()
-                } else {
-                    this.x_a_cloud_B_2 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) - 10.0)).toFloat()
-                }
-                if (this.mFrameCnt < 600) {
-                    this.x_a_cloud_A_2 = (((-0.025) * (this.mFrameCnt.toDouble())) - 5.5).toFloat()
-                } else {
-                    this.x_a_cloud_A_2 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) - 5.5)).toFloat()
-                }
-                if (this.mFrameCnt < 850) {
-                    this.x_a_cloud_A_3 = (((-0.025) * (this.mFrameCnt.toDouble())) + 2.5).toFloat()
-                } else {
-                    this.x_a_cloud_A_3 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) + 2.5)).toFloat()
-                }
-                if (this.mFrameCnt < 650) {
-                    this.x_a_cloud_B_3 = (((-0.025) * (this.mFrameCnt.toDouble())) - 7.5).toFloat()
-                } else {
-                    this.x_a_cloud_B_3 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) - 7.5)).toFloat()
-                }
-                if (this.mFrameCnt < 800) {
-                    this.x_a_cloud_B_4 = (((-0.025) * (this.mFrameCnt.toDouble())) - 5.0).toFloat()
-                } else {
-                    this.x_a_cloud_B_4 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) - 5.0)).toFloat()
-                }
-                if (this.mFrameCnt < 300) {
-                    this.x_a_cloud_B_5 = (((-0.025) * (this.mFrameCnt.toDouble())) - 15.0).toFloat()
-                } else {
-                    this.x_a_cloud_B_5 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) - 15.0)).toFloat()
-                }
-                if (this.mFrameCnt < 110) {
-                    this.x_a_cloud_B_6 = (((-0.025) * (this.mFrameCnt.toDouble())) - 30.0).toFloat()
-                } else {
-                    this.x_a_cloud_B_6 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpan.toDouble()) - 30.0)).toFloat()
-                }
-                if (this.mFrameCnt < 1000) {
-                    this.x_a_cloud_B_7 = (((-0.025) * (this.mFrameCnt.toDouble())) + 5.0).toFloat()
-                } else {
-                    this.x_a_cloud_B_7 =
-                        (((-0.025) * (this.mFrameCnt.toDouble())) + ((cloudWrapSpanShort.toDouble()) + 5.0)).toFloat()
-                }
+                advanceCloudDrift(animationFrameStep)
                 if (this.loadedImagesetDayNight) {
                     this.fAlpha = 0.25f
                 } else {
@@ -4129,7 +4104,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(this.x_a_cloud_A_1 + skyShift, 5.5f, -27.0f)
-                gl10.glScalef(4.0f * this.mfLandscape, 4.4f, 0.0f)
+                gl10.glScalef(4.0f, 4.4f, 0.0f)
                 this.cloud1!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                 if (this.loadedImagesetDayNight) {
                     this.fAlpha = 0.2f
@@ -4138,7 +4113,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(this.x_a_cloud_A_2 + skyShift, 4.8f, -27.3f)
-                gl10.glScalef(3.6f * this.mfLandscape, 3.6f, 0.0f)
+                gl10.glScalef(3.6f, 3.6f, 0.0f)
                 this.cloud1!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                 if (this.loadedImagesetDayNight) {
                     this.fAlpha = 0.2f
@@ -4147,7 +4122,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(this.x_a_cloud_A_3 + skyShift, 2.0f, -27.5f)
-                gl10.glScalef(2.8f * this.mfLandscape, 2.8f, 0.0f)
+                gl10.glScalef(2.8f, 2.8f, 0.0f)
                 this.cloud1!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                 if (this.loadedImagesetDayNight) {
                     this.fAlpha = 0.25f
@@ -4156,7 +4131,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(this.x_a_cloud_B_3 + skyShift, 3.2f, -27.4f)
-                gl10.glScalef(2.8f * this.mfLandscape, 3.2f, 0.0f)
+                gl10.glScalef(2.8f, 3.2f, 0.0f)
                 this.cloud2!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                 if (this.loadedImagesetDayNight) {
                     this.fAlpha = 0.25f
@@ -4165,7 +4140,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(this.x_a_cloud_B_1 + skyShift, 6.2f, -26.9f)
-                gl10.glScalef(4.4f * this.mfLandscape, 5.0f, 0.0f)
+                gl10.glScalef(4.4f, 5.0f, 0.0f)
                 this.cloud2!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                 if (this.loadedImagesetDayNight) {
                     this.fAlpha = 0.25f
@@ -4174,7 +4149,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(this.x_a_cloud_B_2 + skyShift, 7.2f, -27.1f)
-                gl10.glScalef(3.4f * this.mfLandscape, 3.4f, 0.0f)
+                gl10.glScalef(3.4f, 3.4f, 0.0f)
                 this.cloud2!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                 if (this.loadedImagesetDayNight) {
                     this.fAlpha = 0.2f
@@ -4183,7 +4158,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(this.x_a_cloud_B_4 + skyShift, 0.2f, -27.6f)
-                gl10.glScalef(3.2f * this.mfLandscape, 3.2f, 0.0f)
+                gl10.glScalef(3.2f, 3.2f, 0.0f)
                 this.cloud2!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                 if (this.loadedImagesetDayNight) {
                     this.fAlpha = 0.25f
@@ -4192,7 +4167,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(this.x_a_cloud_B_5 + skyShift, 0.3f, -27.7f)
-                gl10.glScalef(3.8f * this.mfLandscape, 3.8f, 0.0f)
+                gl10.glScalef(3.8f, 3.8f, 0.0f)
                 this.cloud2!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                 if (this.loadedImagesetDayNight) {
                     this.fAlpha = 0.2f
@@ -4201,7 +4176,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
                 gl10.glLoadIdentity()
                 gl10.glTranslatef(this.x_a_cloud_B_6 + skyShift, -0.2f, -27.8f)
-                gl10.glScalef(4.4f * this.mfLandscape, 4.4f, 0.0f)
+                gl10.glScalef(4.4f, 4.4f, 0.0f)
                 this.cloud2!!.shortdraw(gl10, this.fAlpha, this.fAlpha)
                 if (this.loadedImagesetDayNight) {
                     this.fAlpha = 0.15f
@@ -4317,7 +4292,7 @@ class SecretWallpaperService : GLWallpaperService() {
                                 }
                                 gl10.glLoadIdentity()
                                 gl10.glTranslatef(f6 + skyShift, f7, -26.0f)
-                                gl10.glScalef(this.mfLandscape * f8, f8, 0.0f)
+                                gl10.glScalef(f8, f8, 0.0f)
                                 if (com.BalancedLight.WindyWeather.SecretWallpaperService.CSPRenderer.Companion.cloud_light_num!![i5] < 3) {
                                     if (com.BalancedLight.WindyWeather.SecretWallpaperService.CSPRenderer.Companion.cloud_light_pos!![i5] == 0) {
                                         this.cloud_light_a_01!!.shortdraw(
@@ -4359,23 +4334,16 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
             }
             gl10.glLoadIdentity()
-            val land2X = if (this.mIsPortrait)
-                (-1.5f) + ((1.5f - (groundOffset * 0.5f)) * 5.0f)
-            else
-                (-1.2f) + ((1.5f - (groundOffset * 0.68f)) * 5.0f)
-            val land2ScaleX =
-                if (this.mIsPortrait) 3.6f * this.mfLandscape else 4.45f * this.mfLandscape * landscapeSceneFill
-            val land2Y = if (this.mIsPortrait) -5.2f else -5.02f
-            val land2ScaleY = if (this.mIsPortrait) 1.8f else 2.05f
-            gl10.glTranslatef(land2X, land2Y, -24.0f)
-            gl10.glScalef(land2ScaleX, land2ScaleY, 0.0f)
-            this.land_02!!.shortdraw(
-                gl10,
-                foregroundTint.red,
-                foregroundTint.green,
-                foregroundTint.blue,
-                1.0f
-            )
+            val land2X = (-1.5f) + ((1.5f - (groundOffset * 0.5f)) * 5.0f)
+            drawGroundBand(gl10, land2X, -5.2f, 24.0f, 3.6f, 1.8f) {
+                this.land_02!!.shortdraw(
+                    gl10,
+                    foregroundTint.red,
+                    foregroundTint.green,
+                    foregroundTint.blue,
+                    1.0f
+                )
+            }
             if (this.windmillSet != null) {
                 for (i7 in this.windmillSet!!.indices) {
                     if (this.windmillSet!![i7] != null && this.windmillSet!![i7]!!.mnDistance == 1 && this.windmillSet!![i7]!!.isCreated) {
@@ -4385,23 +4353,16 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
             }
             gl10.glLoadIdentity()
-            val land1X = if (this.mIsPortrait)
-                (1.5f - (groundOffset * 1.2f)) * 5.0f
-            else
-                (1.5f - (groundOffset * 0.92f)) * 5.0f
-            val land1ScaleX =
-                if (this.mIsPortrait) 3.5f * this.mfLandscape else 4.55f * this.mfLandscape * landscapeSceneFill
-            val land1Y = if (this.mIsPortrait) -6.4f else -6.14f
-            val land1ScaleY = if (this.mIsPortrait) 3.2f else 3.55f
-            gl10.glTranslatef(land1X, land1Y, -23.0f)
-            gl10.glScalef(land1ScaleX, land1ScaleY, 0.0f)
-            this.land_01!!.shortdraw(
-                gl10,
-                foregroundTint.red,
-                foregroundTint.green,
-                foregroundTint.blue,
-                1.0f
-            )
+            val land1X = (1.5f - (groundOffset * 1.2f)) * 5.0f
+            drawGroundBand(gl10, land1X, -6.4f, 23.0f, 3.5f, 3.2f) {
+                this.land_01!!.shortdraw(
+                    gl10,
+                    foregroundTint.red,
+                    foregroundTint.green,
+                    foregroundTint.blue,
+                    1.0f
+                )
+            }
             if (this.windmillSet != null) {
                 for (i8 in this.windmillSet!!.indices) {
                     if (this.windmillSet!![i8] != null && this.windmillSet!![i8]!!.mnDistance == 0 && this.windmillSet!![i8]!!.isCreated) {
@@ -4411,35 +4372,18 @@ class SecretWallpaperService : GLWallpaperService() {
                 }
             }
             val lawnDepth = 23.0f
-            val lawnY = if (this.mIsPortrait) -4.3f else -4.22f
-            gl10.glLoadIdentity()
-            var lawnX = (1.5f - (groundOffset * 1.2f)) * 5.0f
-            if (!this.mIsPortrait) {
-                lawnX += -0.12f * landscapeGroundFill
-            }
-            val lawnScaleX: Float
-            val lawnScaleY: Float
-            if (this.mIsPortrait) {
-                lawnScaleX = 3.5f * this.mfLandscape
-                lawnScaleY = 1.0f
-            } else {
-                // Keep lawn coverage stable across very wide landscape aspect ratios.
-                val lawnCoverage = clamp(0.74f, (0.74f * landscapeGroundFill) + 0.05f, 0.95f)
-                val lawnHeightCoverage =
-                    clamp(0.105f, 0.105f + ((landscapeGroundFill - 1.0f) * 0.02f), 0.14f)
-                lawnScaleX = getRectOneToFourScaleForScreenWidth(lawnDepth, lawnCoverage)
-                lawnScaleY = getRectOneToFourScaleForScreenHeight(lawnDepth, lawnHeightCoverage)
-            }
-            gl10.glTranslatef(lawnX, lawnY, -lawnDepth)
-            gl10.glScalef(lawnScaleX, lawnScaleY, 0.0f)
+            val lawnY = -4.3f
+            val lawnX = (1.5f - (groundOffset * 1.2f)) * 5.0f
             gl10.glDisable(2929)
-            this.lawn_01!!.shortdraw(
-                gl10,
-                foregroundTint.red,
-                foregroundTint.green,
-                foregroundTint.blue,
-                1.0f
-            )
+            drawGroundBand(gl10, lawnX, lawnY, lawnDepth, 3.5f, 1.0f) {
+                this.lawn_01!!.shortdraw(
+                    gl10,
+                    foregroundTint.red,
+                    foregroundTint.green,
+                    foregroundTint.blue,
+                    1.0f
+                )
+            }
             gl10.glEnable(2929)
             gl10.glDisable(2929)
             // Mostly-clear loads the flare texture too but never drew it, so the disc could arc
@@ -4469,7 +4413,7 @@ class SecretWallpaperService : GLWallpaperService() {
                         fSqrt = 0.0f
                     }
                     val f10 = 2.0f + (((this.sunlight_cnt.toDouble()) * 0.004).toFloat())
-                    gl10.glScalef(this.mfLandscape * f10 * 0.6f, f10 * 0.6f, 0.0f)
+                    gl10.glScalef(f10 * 0.6f, f10 * 0.6f, 0.0f)
                     gl10.glRotatef((this.sunlight_cnt * (-0.15f)) - 70.0f, 0.0f, 0.0f, 1.0f)
                     this.sun4!!.shortdraw(gl10, fSqrt, fSqrt)
                 }
@@ -4989,7 +4933,7 @@ class SecretWallpaperService : GLWallpaperService() {
                                 -26.0f
                             )
                             gl10.glScalef(
-                                com.BalancedLight.WindyWeather.SecretWallpaperService.CSPRenderer.Companion.thunder_scale!![i18] * this.mfLandscape,
+                                com.BalancedLight.WindyWeather.SecretWallpaperService.CSPRenderer.Companion.thunder_scale!![i18],
                                 com.BalancedLight.WindyWeather.SecretWallpaperService.CSPRenderer.Companion.thunder_scale!![i18],
                                 0.0f
                             )

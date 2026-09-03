@@ -7,24 +7,24 @@ import javax.microedition.khronos.egl.EGLSurface
 
 internal class DefaultWindowSurfaceFactory : EGLWindowSurfaceFactory {
     override fun createWindowSurface(
-        egl: EGL10,
-        display: EGLDisplay?,
-        config: EGLConfig?,
-        nativeWindow: Any?
+        egl10: EGL10,
+        eGLDisplay: EGLDisplay?,
+        eGLConfig: EGLConfig?,
+        obj: Any?
     ): EGLSurface? {
         var lastFailure: Throwable? = null
         var eglError: Int = EGL10.EGL_SUCCESS
         for (attempt in 1..com.BalancedLight.WindyWeather.DefaultWindowSurfaceFactory.Companion.MAX_SURFACE_RETRIES) {
             try {
                 val eglSurface: EGLSurface? =
-                    egl.eglCreateWindowSurface(display, config, nativeWindow, null)
+                    egl10.eglCreateWindowSurface(eGLDisplay, eGLConfig, obj, null)
                 if (eglSurface != null && eglSurface !== EGL10.EGL_NO_SURFACE) {
                     return eglSurface
                 }
             } catch (th: Throwable) {
                 lastFailure = th
             }
-            eglError = egl.eglGetError()
+            eglError = egl10.eglGetError()
             if (attempt < com.BalancedLight.WindyWeather.DefaultWindowSurfaceFactory.Companion.MAX_SURFACE_RETRIES) {
                 try {
                     Thread.sleep(com.BalancedLight.WindyWeather.DefaultWindowSurfaceFactory.Companion.RETRY_SLEEP_MS)
@@ -44,8 +44,8 @@ internal class DefaultWindowSurfaceFactory : EGLWindowSurfaceFactory {
         throw RuntimeException(message)
     }
 
-    override fun destroySurface(egl: EGL10, display: EGLDisplay?, surface: EGLSurface?) {
-        egl.eglDestroySurface(display, surface)
+    override fun destroySurface(egl10: EGL10, eGLDisplay: EGLDisplay?, eGLSurface: EGLSurface?) {
+        egl10.eglDestroySurface(eGLDisplay, eGLSurface)
     }
 
     companion object {
