@@ -26,6 +26,10 @@ Weather data is provided by [Open-Meteo](https://open-meteo.com/) under [CC BY 4
 * Parallax for launchers that support it
 * Experimental Samsung weather compatibility (Samsung Only)
 
+## Google Play
+Want to be added to the Google Play testing branch? 
+You can enroll here: https://play.google.com/apps/testing/com.BalancedLight.WindyWeather
+
 ## Build
 
 The default Android Studio flavor is `github`: local/manual and GitHub APKs support Android
@@ -118,3 +122,6 @@ regenerates into a scratch area and fails if either the assets or the markup hav
 Wear builds use odd version codes and phone builds use even codes so their shared Play application ID never reuses a code within a coordinated build history.
 Play requires watch-face screenshots to be square and at least 384 x 384; the two in
 `play-assets/wear/` are 454 x 454 captures of the running face.
+
+## Disclaimer
+Some additions to this application were created with assistance from AI
