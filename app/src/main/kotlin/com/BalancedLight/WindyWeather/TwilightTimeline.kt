@@ -58,6 +58,10 @@ internal object TwilightTimeline {
         val nightDistance: Float
             get() = min(skyPosition, SKY_CYCLE - skyPosition)
 
+        /** Shared daylight level for ground textures and windmill lighting. */
+        val foregroundDaylight: Float
+            get() = smoothstep(nightDistance * 0.5f)
+
         /**
          * Full strength through the night, [STARS_ALPHA_AT_EVENT] at sunrise/sunset, gone by the
          * time the twilight band closes.

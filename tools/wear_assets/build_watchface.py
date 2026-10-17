@@ -298,8 +298,8 @@ for name, r, order, alpha_expr in (
          "(([WEATHER.CONDITION] == 4 || [WEATHER.CONDITION] == 9) ? 235 : ([WEATHER.CONDITION] == 6 ? 155 : 0))")):
     w('                <PartAnimatedImage name="%s" %s alpha="0">' % (name, rect(r)))
     w('                    <Transform target="alpha" value="%s" />' % alpha_expr)
-    w('                    <AnimationController play="ON_VISIBLE" repeat="TRUE" loopCount="0" resumePlayBack="TRUE" />')
-    w('                    <SequenceImages frameRate="12" loopCount="0">')
+    w('                    <AnimationController play="ON_VISIBLE" repeat="TRUE" resumePlayBack="TRUE" />')
+    w('                    <SequenceImages frameRate="12">')
     for i in order:
         w('                        <Image resource="fx_rain_f%d" />' % i)
     w('                    </SequenceImages>')

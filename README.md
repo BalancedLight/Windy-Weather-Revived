@@ -28,33 +28,72 @@ Weather data is provided by [Open-Meteo](https://open-meteo.com/) under [CC BY 4
 
 ## Build
 
+The default Android Studio flavor is `github`: local/manual and GitHub APKs support Android
+5.0 (API 21). Select `play` explicitly for Google Play (Android 7.0 / API 24). The Play
+minimum is this project's distribution choice, not a universal Google requirement. `targetSdk`
+remains 37 for both; minimum SDK and target SDK serve different purposes.
+
 ```powershell
-.\gradlew.bat testPlayDebugUnitTest lintPlayRelease bundlePlayRelease
-.\gradlew.bat testGithubDebugUnitTest lintGithubRelease assembleGithubRelease
+.\gradlew.bat :app:assembleGithubDebug           # normal local APK, API 21
+.\gradlew.bat :app:assembleGithubRelease         # GitHub release APK, API 21
+.\gradlew.bat :app:bundlePlayRelease             # Google Play AAB, API 24
+.\gradlew.bat :app:verifyDistributionArtifacts   # both release APKs + Play AAB, inspect packaged manifests
+.\gradlew.bat :app:testGithubDebugUnitTest :app:testPlayDebugUnitTest
 ```
 
-The Play distribution retains `com.BalancedLight.WindyWeather`. The GitHub distribution is separately installable as `com.BalancedLight.WindyWeather.github` and retains the optional USNO moon lookup and AeroWeather synchronization.
+In Android Studio's Generate Signed Bundle / APK wizard, select `playRelease` for Play or
+`githubRelease` for GitHub. Existing signing setup is unchanged. The Play distribution retains
+`com.BalancedLight.WindyWeather`; GitHub is separately installable as
+`com.BalancedLight.WindyWeather.github` and retains USNO moon lookup and AeroWeather synchronization.
+An unqualified `assembleDebug` builds **both** flavors; use the explicit GitHub command for API 21.
+
+Material 1.13.0 and Play services location 21.3.0 declare minSdk 21. The complete GitHub
+dependency graph must pass the normal manifest merger and API checks: no `tools:overrideLibrary`
+or manifest compatibility bypass is used. Do not upgrade dependencies past API 21 support
+without revisiting this distribution contract.
 
 ### Version codes
 
-Play version codes live in [`version.properties`](version.properties) at the repository root, one
-key per module. The root `build.gradle` applies them through the Android Gradle plugin's variant
-API and increments the key for whichever module you just built, immediately after a release bundle
-succeeds — so the bundle you upload carries the current number and the next build is already clear
-of it.
+Every Gradle invocation that schedules APK or AAB packaging reserves a fresh build number
+**before** manifest processing. Repeated incremental builds, debug/release, Android Studio
+signed builds, APKs and bundles all embed the new code in the current artifact. All phone
+variants and outputs in one invocation share a code; Wear uses the next odd code because
+it shares the phone's Play application ID. Building both modules still reserves only once.
+
+`gradle/build-number.gradle` uses twice the UTC seconds since 2020 for phone codes (even),
+plus one for Wear (odd). The next reservation also exceeds both saved codes, so repeated
+builds within one second and a backward clock in the same checkout remain monotonic.
+The first build migrates the old small codes to this larger range. Codes stay within Play's
+2,100,000,000 limit until 2053; an explicit guard rejects exhaustion. Version names stay manual.
+
+[`version.properties`](version.properties) records the last reserved codes. A lock serializes
+reservations in this checkout, and `.gradle/build-number-state.properties` preserves the floor
+across `clean` and restores of the tracked file. Sync, help, lint, tests, manifest-only tasks,
+`clean` alone and `--dry-run` do not reserve. `clean assemble...` does. Failed packaging
+invocations can consume a number: gaps are intentional and numbers must never be rolled back.
+The obsolete `-PnoVersionBump` flag has no effect; all packaging builds increment.
+Configuration cache is disabled because numbering inspects the real task graph each invocation;
+explicitly enabling it fails with an explanation instead of silently reusing a code.
+
+CI uses the same allocator. Phone and Wear jobs share a concurrency group and a cached
+high-water file; workflow reruns reserve fresh codes (`run_attempt` makes each cache save unique).
+CI artifacts include `version.properties` to carry the used floor back to local builds.
+GitHub cache scope/retention still applies. Before moving releases between independent local
+checkouts and CI, carry forward the latest `version.properties` and compare the artifact's code
+with Play Console. Offline machines cannot guarantee global uniqueness without shared state:
+serialize official release builds, keep clocks correct, and publish artifacts in increasing-code
+order. The workflow does not commit, push or upload to Play automatically.
+
+Focused integration regression (requires the installed JDK/Android SDK):
 
 ```powershell
-.\gradlew.bat :app:bundlePlayRelease          # bumps app.versionCode
-.\gradlew.bat :wearWatchFace:bundleRelease    # bumps wearWatchFace.versionCode
-.\gradlew.bat :app:bundlePlayRelease -PnoVersionBump   # bumps nothing
+powershell -File tools\test_build_numbering.ps1
 ```
 
-Only `bundle*Release` tasks bump; debug builds, IDE syncs and `assembleGithubRelease` (the GitHub
-APK never goes through Play) leave the file alone, and one invocation produces one bump however
-many variants it builds. CI passes `-PnoVersionBump`.
-
-`app/build.gradle` still declares a `versionCode`. It is overridden at build time and is no longer
-what ships — `version.properties` is authoritative.
+It checks non-packaging tasks and dry-runs leave the counter unchanged, then verifies two
+successive packaging runs (one after clean) increase the actual APK and AAB manifest codes.
+`verifyDistributionArtifacts -PverificationDistribution=github` or `play` limits inspection to
+one CI distribution; `-PverificationBuildType=debug` checks debug artifacts.
 
 ## Installation
 Download and install the APK, and open your phone wallpaper selector, then select Windy Weather.
@@ -76,6 +115,6 @@ renderer's projection, `generate.py` writes both the artwork and the `layout` bl
 `wear/scene_mapping.json`, and `build_watchface.py` emits `watchface.xml` from that layout. `--check`
 regenerates into a scratch area and fails if either the assets or the markup have drifted.
 
-Wear releases use version codes from 100000 upward so they never collide with the phone track.
+Wear builds use odd version codes and phone builds use even codes so their shared Play application ID never reuses a code within a coordinated build history.
 Play requires watch-face screenshots to be square and at least 384 x 384; the two in
 `play-assets/wear/` are 454 x 454 captures of the running face.

@@ -1,0 +1,74 @@
+// Read the manifests from the actual APK/AAB, rather than trusting output filenames.
+def verifyType = providers.gradleProperty('verificationBuildType').getOrElse('release')
+if (!(verifyType in ['debug', 'release'])) {
+    throw new GradleException('verificationBuildType must be debug or release')
+}
+def distributions = providers.gradleProperty('verificationDistribution').getOrElse('all')
+if (!(distributions in ['all', 'github', 'play'])) {
+    throw new GradleException('verificationDistribution must be all, github or play')
+}
+tasks.register('verifyDistributionArtifacts') {
+    group = 'verification'
+    if (distributions in ['all', 'github']) dependsOn "assembleGithub${verifyType.capitalize()}"
+    if (distributions in ['all', 'play']) {
+        dependsOn "assemblePlay${verifyType.capitalize()}", "bundlePlay${verifyType.capitalize()}"
+    }
+    doLast {
+        int code = rootProject.buildVersionCodes.get().app.intValue()
+        def androidPluginLoader = plugins.getPlugin('com.android.application').class.classLoader
+        def nodeClass = Class.forName('com.android.aapt.Resources$XmlNode', true, androidPluginLoader)
+        def readBundle = { File bundle ->
+            new java.util.zip.ZipFile(bundle).withCloseable { archive ->
+                def bytes = archive.getInputStream(archive.getEntry('base/manifest/AndroidManifest.xml')).bytes
+                def node = nodeClass.getMethod('parseFrom', byte[].class).invoke(null, [bytes] as Object[])
+                def root = node.element
+                def attributes = { element -> element.attributeList.collectEntries { attr ->
+                    [(attr.name): attr.value ?: attr.compiledItem.prim.intDecimalValue.toString()]
+                } }
+                def sdk = root.childList.find { it.hasElement() && it.element.name == 'uses-sdk' }.element
+                [packageName: attributes(root).get('package'),
+                 versionCode: attributes(root).get('versionCode').toInteger(),
+                 minSdk: attributes(sdk).get('minSdkVersion').toInteger()]
+            }
+        }
+        ['github': 21, 'play': 24].each { distribution, sdk ->
+            if (distributions != 'all' && distributions != distribution) return
+            def apkDir = layout.buildDirectory.dir("outputs/apk/${distribution}/${verifyType}").get().asFile
+            def apk = fileTree(apkDir).matching { include '*.apk' }.singleFile
+            def aapt = new File(android.sdkDirectory,
+                    "build-tools/${android.buildToolsVersion}/aapt2${System.getProperty('os.name').startsWith('Windows') ? '.exe' : ''}")
+            def process = new ProcessBuilder(aapt.absolutePath, 'dump', 'badging', apk.absolutePath)
+                    .redirectErrorStream(true).start()
+            def badging = process.inputStream.getText('UTF-8')
+            if (process.waitFor() != 0) throw new GradleException(badging)
+            def packageName = 'com.BalancedLight.WindyWeather' + (distribution == 'github' ? '.github' : '')
+            assert badging.contains("name='${packageName}'") : badging
+            assert badging.contains("versionCode='${code}'") : badging
+            assert badging.contains("minSdkVersion:'${sdk}'") : badging
+            logger.lifecycle("Verified ${apk.name}: minSdk=${sdk}, versionCode=${code}")
+        }
+        if (distributions == 'github') return
+        def bundle = layout.buildDirectory.file("outputs/bundle/play${verifyType.capitalize()}/app-play-${verifyType}.aab").get().asFile
+        def manifest = readBundle(bundle)
+        assert manifest == [packageName: 'com.BalancedLight.WindyWeather', versionCode: code, minSdk: 24] : manifest
+        logger.lifecycle("Verified ${bundle.name}: ${manifest}")
+    }
+}
+
+// abortOnError is disabled for legacy lint debt; API compatibility must still fail CI.
+tasks.register('verifyGithubApiCompatibility') {
+    group = 'verification'
+    dependsOn 'lintGithubRelease'
+    doLast {
+        def report = layout.buildDirectory.file('reports/lint-results-githubRelease.xml').get().asFile
+        def xml = javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(report)
+        def issues = xml.getElementsByTagName('issue')
+        def errors = []
+        for (int i = 0; i < issues.length; i++) {
+            def issue = issues.item(i)
+            if (issue.getAttribute('id') == 'NewApi') errors.add(issue.getAttribute('message'))
+        }
+        if (!errors.empty) throw new GradleException('API 21 compatibility errors: ' + errors.join('\n'))
+        logger.lifecycle('Verified GitHub lint reports no unsupported API calls (NewApi).')
+    }
+}

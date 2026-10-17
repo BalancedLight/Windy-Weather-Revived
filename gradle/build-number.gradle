@@ -1,0 +1,82 @@
+// One reservation per packaging invocation, before manifest/resource task inputs are read.
+// Graph callbacks deliberately require configuration cache to be disabled.
+if (gradle.startParameter.configurationCacheRequested) {
+    throw new GradleException('Automatic build numbering requires --no-configuration-cache.')
+}
+
+def versionFile = rootProject.file('version.properties')
+def stateFile = rootProject.file('.gradle/build-number-state.properties')
+def readCodes = {
+    def properties = new Properties()
+    versionFile.withInputStream { properties.load(it) }
+    ['app', 'wearWatchFace'].collectEntries { module ->
+        def value = properties.getProperty("${module}.versionCode")
+        if (value == null || !(value ==~ /[1-9][0-9]*/)) {
+            throw new GradleException("Invalid or missing ${module}.versionCode in version.properties")
+        }
+        [(module): Long.parseLong(value)]
+    }
+}
+def codes = readCodes()
+rootProject.ext.buildVersionCodes = providers.provider { codes.asImmutable() }
+def packagingTasks = []
+subprojects {
+    plugins.withId('com.android.application') {
+        def androidComponents = extensions.getByName('androidComponents')
+        androidComponents.onVariants(androidComponents.selector().all()) { variant ->
+            variant.outputs.each { output ->
+                output.versionCode.set(providers.provider { codes[project.name].intValue() })
+            }
+        }
+        tasks.configureEach { task ->
+            // Exact AGP APK packagers and bundle packagers, including IDE signed builds.
+            // Excludes package*Resources and other intermediate-only tasks.
+            def taskTypes = []
+            for (def type = task.class; type != null; type = type.superclass) {
+                taskTypes.add(type.simpleName)
+            }
+            if (taskTypes.contains('PackageAndroidArtifact') || taskTypes.contains('PackageBundleTask')) {
+                packagingTasks.add(task)
+            }
+        }
+    }
+}
+gradle.taskGraph.whenReady { graph ->
+    if (gradle.startParameter.dryRun || !packagingTasks.any { graph.hasTask(it) }) {
+        return
+    }
+    // A separate lock survives replacing/truncating version.properties and serializes
+    // concurrent invocations in this checkout. Never roll back a consumed number.
+    def lockFile = rootProject.file('.gradle/build-number.lock')
+    lockFile.parentFile.mkdirs()
+    new RandomAccessFile(lockFile, 'rw').withCloseable { handle ->
+        handle.channel.lock().withCloseable {
+            def previous = readCodes()
+            if (stateFile.exists()) {
+                def state = new Properties()
+                stateFile.withInputStream { state.load(it) }
+                previous.keySet().each { module ->
+                    previous[module] = Math.max(previous[module],
+                            Long.parseLong(state.getProperty("${module}.versionCode", '0')))
+                }
+            }
+            // Seconds since 2020; even phone / odd Wear codes cannot collide despite
+            // their shared Play applicationId. Valid below Play's 2.1 billion cap until 2053.
+            long clockSlot = java.time.Instant.now().epochSecond - 1577836800L
+            long slot = Math.max(clockSlot,
+                    Math.max(previous.app.intdiv(2) + 1L, previous.wearWatchFace.intdiv(2) + 1L))
+            if (slot < 1 || slot * 2L + 1L > 2100000000L) {
+                throw new GradleException('Build number exhausted or system clock invalid.')
+            }
+            codes = [app: slot * 2L, wearWatchFace: slot * 2L + 1L]
+            def text = versionFile.getText('UTF-8')
+            codes.each { module, code ->
+                text = text.replaceAll("(?m)^${module}\\.versionCode=[0-9]+\\r?\$",
+                        "${module}.versionCode=${code}")
+            }
+            versionFile.setText(text, 'UTF-8')
+            stateFile.setText(codes.collect { module, code -> "${module}.versionCode=${code}\n" }.join(''), 'UTF-8')
+            logger.lifecycle("Reserved build version codes: phone=${codes.app}, Wear=${codes.wearWatchFace}")
+        }
+    }
+}

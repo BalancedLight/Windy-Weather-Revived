@@ -8,6 +8,36 @@ import org.junit.Test
 
 class TwilightTimelineTest {
     @Test
+    fun `foreground lighting follows the full twilight window`() {
+        for ((minute, light) in listOf(315 to 0f, 360 to 0.5f, 405 to 1f,
+            720 to 1f, 1035 to 1f, 1080 to 0.5f, 1125 to 0f, 1439 to 0f)) {
+            assertEquals(light, TwilightTimeline.resolve(minute, 600, 1800).foregroundDaylight, 0.00001f)
+        }
+    }
+
+    @Test
+    fun `foreground lighting is continuous and monotonic through dawn and dusk`() {
+        for (event in listOf(360, 1080)) {
+            var previous = TwilightTimeline.resolve(event - 46f, 600, 1800).foregroundDaylight
+            for (step in 1..920) {
+                val light = TwilightTimeline.resolve(event - 46f + step / 10f, 600, 1800).foregroundDaylight
+                assertTrue(light in 0f..1f)
+                assertTrue(kotlin.math.abs(light - previous) < 0.002f)
+                assertTrue(if (event == 360) light >= previous else light <= previous)
+                previous = light
+            }
+        }
+    }
+
+    @Test
+    fun `foreground lighting respects short nights and fallback times`() {
+        assertEquals(0f, TwilightTimeline.resolve(0, 30, 2330).foregroundDaylight, 0f)
+        assertEquals(0.5f, TwilightTimeline.resolve(30, 30, 2330).foregroundDaylight, 0.0001f)
+        assertEquals(1f, TwilightTimeline.resolve(60, 30, 2330).foregroundDaylight, 0f)
+        assertEquals(0f, TwilightTimeline.resolve(0, -1, 1800).foregroundDaylight, 0f)
+        assertEquals(1f, TwilightTimeline.resolve(720, -1, 1800).foregroundDaylight, 0f)
+    }
+    @Test
     fun `centres non-hour aligned twilight bands on sunrise and sunset`() {
         val sunrise = 630
         val sunset = 1845

@@ -681,6 +681,10 @@ class SecretWallpaperService : GLWallpaperService() {
         }
     }
 
+    private val foregroundDaylight: Float
+        get() = if (isAutomaticTimeOfDayVisualsEnabled) currentTwilightTimeline.foregroundDaylight
+            else if (isNightEffective) 0f else 1f
+
     private fun foregroundTwilightTint(sceneOrdinal: Int): TwilightTimeline.Rgb {
         if (!this.isAutomaticTimeOfDayVisualsEnabled) {
             return TwilightTimeline.Rgb(1.0f, 1.0f, 1.0f)
@@ -2744,6 +2748,31 @@ class SecretWallpaperService : GLWallpaperService() {
             this.sky_stars!!.loadGLTexture(gl10, context, R.drawable.d_sky_stars, false)
         }
 
+        private fun loadGroundTextures(gl: GL10?, context: Context?, scene: Int, night: Boolean, snowGround: Boolean) {
+            val snowy = scene == WeatherConditions.D9_SLEET.ordinal ||
+                (scene == WeatherConditions.D7_FLURRIES_SNOW.ordinal && snowGround)
+            val muted = scene == WeatherConditions.D2_CLOUDY.ordinal ||
+                scene == WeatherConditions.D4_FOG.ordinal || scene == WeatherConditions.D8_ICE_COLD.ordinal ||
+                scene == WeatherConditions.D3_DREARY.ordinal || scene == WeatherConditions.D6_THUNDERSTORMS.ordinal
+            val dayLand = if (snowy) R.drawable.a_land_06 else if (muted) R.drawable.a_land_05 else R.drawable.a_land_01
+            val dayBack = if (snowy) R.drawable.a_land_07 else R.drawable.a_land_02
+            val dayLawn = if (snowy) R.drawable.a_lawn_04 else if (muted) R.drawable.a_lawn_03 else R.drawable.a_lawn_01
+            val nightLand = if (snowy) R.drawable.a_land_08 else R.drawable.a_land_03
+            val nightBack = if (snowy) R.drawable.a_land_09 else R.drawable.a_land_04
+            val nightLawn = if (snowy) R.drawable.a_lawn_05 else R.drawable.a_lawn_02
+            val service = mMainService
+            fun load(ground: RectOneToFour?, dayId: Int, nightId: Int) {
+                if (service?.isAutomaticTimeOfDayVisualsEnabled == true) {
+                    ground?.loadDayNightTextures(gl, context, dayId, nightId, service.foregroundDaylight)
+                } else {
+                    ground?.loadGLTexture(gl, context, if (night) nightId else dayId, false)
+                }
+            }
+            load(land_01, dayLand, nightLand)
+            load(land_02, dayBack, nightBack)
+            load(lawn_01, dayLawn, nightLawn)
+        }
+
         private fun loadImages(gl10: GL10?, context: Context?, i: Int, z: Boolean) {
             val i2: Int
             val i3: Int
@@ -2789,9 +2818,6 @@ class SecretWallpaperService : GLWallpaperService() {
                     this.sun2!!.loadGLTexture(gl10, context, R.drawable.a_sun_02, false)
                     this.sun3!!.loadGLTexture(gl10, context, R.drawable.a_sun_03, false)
                     this.sun4!!.loadGLTexture(gl10, context, R.drawable.a_sun_04, false)
-                    this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_01, false)
-                    this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_02, false)
-                    this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_01, false)
                     if ((com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.twilightStarsAlpha(i) ?: 0.0f) > 0.0f) {
                         loadLegacyStarBand(gl10, context)
                     } else {
@@ -2819,9 +2845,6 @@ class SecretWallpaperService : GLWallpaperService() {
                         false,
                         com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.moonIsReflect[i3]
                     )
-                    this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_03, false)
-                    this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_04, false)
-                    this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_02, false)
                     if (mostlyClearScene) {
                         this.cloud1!!.loadGLTexture(gl10, context, R.drawable.cloud_a_03, false)
                         this.cloud2!!.loadGLTexture(gl10, context, R.drawable.cloud_b_03, false)
@@ -2873,9 +2896,6 @@ class SecretWallpaperService : GLWallpaperService() {
                         this.cloud1!!.loadGLTexture(gl10, context, R.drawable.cloud_a_02, false)
                         this.cloud2!!.loadGLTexture(gl10, context, R.drawable.cloud_b_02, false)
                     }
-                    this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_05, false)
-                    this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_02, false)
-                    this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_03, false)
                     this.moon!!.deleteGLTexture(gl10, context)
                     this.star!!.deleteGLTexture(gl10, context)
                     this.meteor!!.deleteGLTexture(gl10, context)
@@ -2899,9 +2919,6 @@ class SecretWallpaperService : GLWallpaperService() {
                     } else {
                         this.nightcover!!.deleteGLTexture(gl10, context)
                     }
-                    this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_03, false)
-                    this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_04, false)
-                    this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_02, false)
                     if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D2_CLOUDY.ordinal || i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D4_FOG.ordinal) {
                         this.moon!!.deleteGLTexture(gl10, context)
                         this.star!!.deleteGLTexture(gl10, context)
@@ -2986,15 +3003,9 @@ class SecretWallpaperService : GLWallpaperService() {
                     // Day rain should use the lighter rain sky, not the night backdrop.
                     loadSkyTexture(gl10, context, R.drawable.sky_03)
                     this.nightcover!!.deleteGLTexture(gl10, context)
-                    this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_01, false)
-                    this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_02, false)
-                    this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_01, false)
                 } else {
                     loadSkyTexture(gl10, context, R.drawable.sky_04)
                     this.nightcover!!.loadGLTexture(gl10, context, R.drawable.nightcover_01, false)
-                    this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_03, false)
-                    this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_04, false)
-                    this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_02, false)
                 }
                 this.waterdrop!!.loadGLTexture(gl10, context, R.drawable.c_waterdrop, false)
                 this.rain1!!.loadGLTexture(gl10, context, R.drawable.c_rain_01, false)
@@ -3050,15 +3061,6 @@ class SecretWallpaperService : GLWallpaperService() {
                 if (!z) {
                     loadSkyTexture(gl10, context, R.drawable.sky_03)
                     this.nightcover!!.deleteGLTexture(gl10, context)
-                    if (useSnowGroundTextures || i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D9_SLEET.ordinal) {
-                        this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_06, false)
-                        this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_07, false)
-                        this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_04, false)
-                    } else {
-                        this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_01, false)
-                        this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_02, false)
-                        this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_01, false)
-                    }
                 } else {
                     loadSkyTexture(gl10, context, R.drawable.sky_04)
                     if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D9_SLEET.ordinal) {
@@ -3070,15 +3072,6 @@ class SecretWallpaperService : GLWallpaperService() {
                         )
                     } else {
                         this.nightcover!!.deleteGLTexture(gl10, context)
-                    }
-                    if (useSnowGroundTextures || i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D9_SLEET.ordinal) {
-                        this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_08, false)
-                        this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_09, false)
-                        this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_05, false)
-                    } else {
-                        this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_03, false)
-                        this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_04, false)
-                        this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_02, false)
                     }
                 }
                 if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D9_SLEET.ordinal) {
@@ -3215,9 +3208,6 @@ class SecretWallpaperService : GLWallpaperService() {
                 if (!z) {
                     loadSkyTexture(gl10, context, R.drawable.sky_03)
                     this.nightcover!!.deleteGLTexture(gl10, context)
-                    this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_05, false)
-                    this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_02, false)
-                    this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_03, false)
                 } else {
                     if (i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D6_THUNDERSTORMS.ordinal || i == com.BalancedLight.WindyWeather.SecretWallpaperService.WeatherConditions.D3_DREARY.ordinal) {
                         loadSkyTexture(gl10, context, R.drawable.sky_04)
@@ -3225,9 +3215,6 @@ class SecretWallpaperService : GLWallpaperService() {
                         loadSkyTexture(gl10, context, R.drawable.sky_02)
                     }
                     this.nightcover!!.loadGLTexture(gl10, context, R.drawable.nightcover_01, false)
-                    this.land_01!!.loadGLTexture(gl10, context, R.drawable.a_land_03, false)
-                    this.land_02!!.loadGLTexture(gl10, context, R.drawable.a_land_04, false)
-                    this.lawn_01!!.loadGLTexture(gl10, context, R.drawable.a_lawn_02, false)
                 }
                 this.sun1!!.deleteGLTexture(gl10, context)
                 this.sun2!!.deleteGLTexture(gl10, context)
@@ -3269,6 +3256,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 this.bRainOn = thunderstormScene && !hideThunderRaindropsLegacy
                 this.bThunderOn = true
             }
+            loadGroundTextures(gl10, context, i, z, useSnowGroundTextures)
             if (shouldLoadFrost) {
                 this.frost!!.loadGLTexture(gl10, context, R.drawable.e_frost, false)
             } else {
@@ -3631,17 +3619,11 @@ class SecretWallpaperService : GLWallpaperService() {
                 this.mbFlip = bFlip
             }
 
-            fun drawWindMill(gl: GL10, bType: Boolean, tint: TwilightTimeline.Rgb) {
-                var fColor = 1.0f
-                if (com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService!!.isNightEffective) {
-                    val oldNightEffect: Boolean =
-                        com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService!!.isOldNightEffectEnabled
-                    if (oldNightEffect) {
-                        fColor = 0.0f
-                    } else {
-                        fColor = 0.2f
-                    }
-                }
+            fun drawWindMill(gl: GL10, bType: Boolean, tint: TwilightTimeline.Rgb, daylight: Float) {
+                val fColor = ForegroundLighting.windmillBrightness(
+                    daylight,
+                    com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.isOldNightEffectEnabled == true
+                )
                 if (this.mnDistance == 0) {
                     this.mPillar!!.moveTo(gl, this.mnDistance)
                     if (!this.mbFlip) {
@@ -3834,6 +3816,8 @@ class SecretWallpaperService : GLWallpaperService() {
                 if (this.mIsPortrait) 1.0f else clamp(1.0f, this.mSurfaceAspect / 1.7777778f, 1.50f)
             val loadedWeather = this.loadedImageset
             val loadedNight = this.loadedImagesetDayNight
+            val foregroundDaylight = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService
+                ?.foregroundDaylight ?: if (loadedNight) 0f else 1f
             val foregroundTint = com.BalancedLight.WindyWeather.SecretWallpaperService.Companion.mMainService?.foregroundTwilightTint(
                 loadedWeather
             ) ?: TwilightTimeline.Rgb(1.0f, 1.0f, 1.0f)
@@ -4329,7 +4313,7 @@ class SecretWallpaperService : GLWallpaperService() {
                 for (i6 in this.windmillSet!!.indices) {
                     if (this.windmillSet!![i6] != null && this.windmillSet!![i6]!!.mnDistance == 2 && this.windmillSet!![i6]!!.isCreated) {
                         this.windmillSet!![i6]!!.setFanAngle(this.mWindmillAngle + this.windmill_wing_offset[i6])
-                        this.windmillSet!![i6]!!.drawWindMill(gl10, true, foregroundTint)
+                        this.windmillSet!![i6]!!.drawWindMill(gl10, true, foregroundTint, foregroundDaylight)
                     }
                 }
             }
@@ -4341,14 +4325,15 @@ class SecretWallpaperService : GLWallpaperService() {
                     foregroundTint.red,
                     foregroundTint.green,
                     foregroundTint.blue,
-                    1.0f
+                    1.0f,
+                    foregroundDaylight
                 )
             }
             if (this.windmillSet != null) {
                 for (i7 in this.windmillSet!!.indices) {
                     if (this.windmillSet!![i7] != null && this.windmillSet!![i7]!!.mnDistance == 1 && this.windmillSet!![i7]!!.isCreated) {
                         this.windmillSet!![i7]!!.setFanAngle(this.mWindmillAngle + this.windmill_wing_offset[i7])
-                        this.windmillSet!![i7]!!.drawWindMill(gl10, true, foregroundTint)
+                        this.windmillSet!![i7]!!.drawWindMill(gl10, true, foregroundTint, foregroundDaylight)
                     }
                 }
             }
@@ -4360,14 +4345,15 @@ class SecretWallpaperService : GLWallpaperService() {
                     foregroundTint.red,
                     foregroundTint.green,
                     foregroundTint.blue,
-                    1.0f
+                    1.0f,
+                    foregroundDaylight
                 )
             }
             if (this.windmillSet != null) {
                 for (i8 in this.windmillSet!!.indices) {
                     if (this.windmillSet!![i8] != null && this.windmillSet!![i8]!!.mnDistance == 0 && this.windmillSet!![i8]!!.isCreated) {
                         this.windmillSet!![i8]!!.setFanAngle(this.mWindmillAngle + this.windmill_wing_offset[i8])
-                        this.windmillSet!![i8]!!.drawWindMill(gl10, true, foregroundTint)
+                        this.windmillSet!![i8]!!.drawWindMill(gl10, true, foregroundTint, foregroundDaylight)
                     }
                 }
             }
@@ -4381,7 +4367,8 @@ class SecretWallpaperService : GLWallpaperService() {
                     foregroundTint.red,
                     foregroundTint.green,
                     foregroundTint.blue,
-                    1.0f
+                    1.0f,
+                    foregroundDaylight
                 )
             }
             gl10.glEnable(2929)

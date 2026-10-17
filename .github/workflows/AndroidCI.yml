@@ -12,10 +12,10 @@ permissions:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        distribution: [play, github]
+    # Shared with WearOsCI: the cached high-water mark has a single writer.
+    concurrency:
+      group: android-build-number
+      cancel-in-progress: false
     runs-on: ubuntu-latest
 
     steps:
@@ -31,52 +31,56 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Restore build-number high-water mark
+        uses: actions/cache@v4
+        with:
+          path: .gradle/build-number-state.properties
+          key: android-build-number-${{ github.run_id }}-${{ github.run_attempt }}-all
+          restore-keys: android-build-number-
+
       - name: Make Gradle Wrapper executable
         run: chmod +x gradlew
 
-      - name: Test, lint, and build Play
-        if: matrix.distribution == 'play'
-        run: ./gradlew testPlayDebugUnitTest lintPlayRelease bundlePlayRelease --console=plain --stacktrace
-
-      - name: Test, lint, and build GitHub
-        if: matrix.distribution == 'github'
-        run: ./gradlew testGithubDebugUnitTest lintGithubRelease assembleGithubRelease --console=plain --stacktrace
+      - name: Test, lint, build, and inspect both distributions
+        run: ./gradlew :app:testPlayDebugUnitTest :app:testGithubDebugUnitTest :app:lintPlayRelease :app:verifyGithubApiCompatibility :app:verifyDistributionArtifacts --console=plain --stacktrace
 
       - name: Verify R8 release outputs
         shell: bash
         run: |
-          r8_dir="app/build/outputs/mapping/${{ matrix.distribution }}Release"
-          test -s "$r8_dir/configuration.txt"
-          test -s "$r8_dir/mapping.txt"
-          test -s "$r8_dir/resources.txt"
-          test -s "$r8_dir/usage.txt"
+          for distribution in play github; do
+            r8_dir="app/build/outputs/mapping/${distribution}Release"
+            test -s "$r8_dir/configuration.txt"
+            test -s "$r8_dir/mapping.txt"
+            test -s "$r8_dir/resources.txt"
+            test -s "$r8_dir/usage.txt"
 
-          distribution="${{ matrix.distribution }}"
-          release_variant="${distribution}Release"
-          task_variant="${distribution^}Release"
-          shrunk_resources="app/build/intermediates/shrunk_resources_proto_format/${release_variant}/minify${task_variant}WithR8/shrunk-resources-proto-format-${distribution}-release.ap_"
-          test -s "$shrunk_resources"
+            release_variant="${distribution}Release"
+            task_variant="${distribution^}Release"
+            shrunk_resources="app/build/intermediates/shrunk_resources_proto_format/${release_variant}/minify${task_variant}WithR8/shrunk-resources-proto-format-${distribution}-release.ap_"
+            test -s "$shrunk_resources"
 
-          # Legacy textures are resolved dynamically as <base>_lq, so R8 cannot infer their use.
-          source_legacy_textures="$(mktemp)"
-          shrunk_legacy_textures="$(mktemp)"
-          find app/res -type f -path '*/drawable*/*' -name '*_lq.*' -printf '%f\n' | sort > "$source_legacy_textures"
-          unzip -Z1 "$shrunk_resources" | sed -nE 's#^res/drawable[^/]*/([^/]+_lq\.[^/]+)$#\1#p' | sort > "$shrunk_legacy_textures"
-          test -s "$source_legacy_textures"
-          diff -u "$source_legacy_textures" "$shrunk_legacy_textures"
+            # Legacy textures are resolved dynamically as <base>_lq, so R8 cannot infer their use.
+            source_legacy_textures="$(mktemp)"
+            shrunk_legacy_textures="$(mktemp)"
+            find app/res -type f -path '*/drawable*/*' -name '*_lq.*' -printf '%f\n' | sort > "$source_legacy_textures"
+            unzip -Z1 "$shrunk_resources" | sed -nE 's#^res/drawable[^/]*/([^/]+_lq\.[^/]+)$#\1#p' | sort > "$shrunk_legacy_textures"
+            test -s "$source_legacy_textures"
+            diff -u "$source_legacy_textures" "$shrunk_legacy_textures"
 
-          if [[ "${{ matrix.distribution }}" == "play" ]]; then
-            bundle_entries="$(unzip -Z1 app/build/outputs/bundle/playRelease/app-play-release.aab)"
-            grep -Fxq 'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map' <<< "$bundle_entries"
-            grep -Fxq 'BUNDLE-METADATA/com.android.tools/r8.json' <<< "$bundle_entries"
-          fi
+            if [[ "$distribution" == "play" ]]; then
+              bundle_entries="$(unzip -Z1 app/build/outputs/bundle/playRelease/app-play-release.aab)"
+              grep -Fxq 'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map' <<< "$bundle_entries"
+              grep -Fxq 'BUNDLE-METADATA/com.android.tools/r8.json' <<< "$bundle_entries"
+            fi
+          done
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: WindyWeather-${{ matrix.distribution }}-release
+          name: WindyWeather-all-release
           path: |
             app/build/outputs/bundle/playRelease/*.aab
             app/build/outputs/apk/github/release/*.apk
-            app/build/outputs/mapping/${{ matrix.distribution }}Release/*.txt
+            app/build/outputs/mapping/*Release/*.txt
+            version.properties
           if-no-files-found: error

@@ -12,6 +12,9 @@ permissions:
 
 jobs:
   wear:
+    concurrency:
+      group: android-build-number
+      cancel-in-progress: false
     name: Build and validate the Wear OS watch face
     runs-on: ubuntu-latest
 
@@ -42,14 +45,28 @@ jobs:
       - name: Validate watchface.xml against Watch Face Format version 2
         run: java -jar tools/wff/wff-validator.jar 2 wearWatchFace/src/main/res/raw/watchface.xml
 
+      - name: Validate against the stricter version 5 schema (advisory)
+        run: |
+          # The face ships as version 2, but v4/v5 tightened several attribute types. Validating
+          # against v5 as well catches mistakes v2 is too loose to reject - loopCount="0" on
+          # SequenceImages passed v2 for months while rendering a static first frame.
+          java -jar tools/wff/wff-validator.jar 5 wearWatchFace/src/main/res/raw/watchface.xml
+
       - name: Make Gradle Wrapper executable
         run: chmod +x gradlew
 
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Restore build-number high-water mark
+        uses: actions/cache@v4
+        with:
+          path: .gradle/build-number-state.properties
+          key: android-build-number-${{ github.run_id }}-${{ github.run_attempt }}-wear
+          restore-keys: android-build-number-
+
       - name: Build the Wear debug APK and release AAB
-        run: ./gradlew :wearWatchFace:assembleDebug :wearWatchFace:bundleRelease -PnoVersionBump --console=plain --stacktrace
+        run: ./gradlew :wearWatchFace:assembleDebug :wearWatchFace:bundleRelease --console=plain --stacktrace
 
       - name: Run the Watch Face Format memory evaluator
         run: |
@@ -117,14 +134,6 @@ jobs:
             exit 1
           fi
 
-      - name: Confirm the build did not bump a version code
-        run: |
-          if ! git diff --quiet --exit-code -- version.properties; then
-            echo "::error::CI must build with -PnoVersionBump; version.properties was rewritten"
-            git --no-pager diff -- version.properties
-            exit 1
-          fi
-
       - name: Upload the Wear OS release bundle
         uses: actions/upload-artifact@v4
         with:
@@ -134,4 +143,5 @@ jobs:
             wearWatchFace/build/outputs/apk/debug/*.apk
             memory-footprint.json
             wear/wear_asset_manifest.json
+            version.properties
           if-no-files-found: error

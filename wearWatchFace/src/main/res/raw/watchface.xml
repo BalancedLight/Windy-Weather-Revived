@@ -535,8 +535,8 @@
 
                 <PartAnimatedImage name="rainFar" x="-40" y="-40" width="530" height="530" alpha="0">
                     <Transform target="alpha" value="(([WEATHER.CONDITION] == 4 || [WEATHER.CONDITION] == 9) ? 150 : ([WEATHER.CONDITION] == 6 ? 100 : ([WEATHER.CONDITION] == 12 ? 82 : ([WEATHER.CONDITION] == 10 ? 100 : 0))))" />
-                    <AnimationController play="ON_VISIBLE" repeat="TRUE" loopCount="0" resumePlayBack="TRUE" />
-                    <SequenceImages frameRate="12" loopCount="0">
+                    <AnimationController play="ON_VISIBLE" repeat="TRUE" resumePlayBack="TRUE" />
+                    <SequenceImages frameRate="12">
                         <Image resource="fx_rain_f0" />
                         <Image resource="fx_rain_f1" />
                         <Image resource="fx_rain_f2" />
@@ -545,8 +545,8 @@
 
                 <PartAnimatedImage name="rainNear" x="0" y="0" width="450" height="450" alpha="0">
                     <Transform target="alpha" value="(([WEATHER.CONDITION] == 4 || [WEATHER.CONDITION] == 9) ? 235 : ([WEATHER.CONDITION] == 6 ? 155 : 0))" />
-                    <AnimationController play="ON_VISIBLE" repeat="TRUE" loopCount="0" resumePlayBack="TRUE" />
-                    <SequenceImages frameRate="12" loopCount="0">
+                    <AnimationController play="ON_VISIBLE" repeat="TRUE" resumePlayBack="TRUE" />
+                    <SequenceImages frameRate="12">
                         <Image resource="fx_rain_f2" />
                         <Image resource="fx_rain_f0" />
                         <Image resource="fx_rain_f1" />

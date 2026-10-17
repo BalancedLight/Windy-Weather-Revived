@@ -10,10 +10,7 @@ android {
         applicationId = "com.BalancedLight.WindyWeather"
         minSdk = 34
         targetSdk 37
-        // Overridden at build time from the root version.properties, which is the
-        // authoritative value and bumps itself after a release bundle. Editing this
-        // line has no effect on what ships.
-        versionCode = 100002
+        // version.properties supplies the packaged code for every variant.
         versionName = "1.0.0"
     }
 

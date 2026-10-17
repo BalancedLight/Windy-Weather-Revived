@@ -11,17 +11,20 @@ android {
         applicationId = "com.BalancedLight.WindyWeather"
         minSdk = 21
         targetSdk 37
-        versionCode = 8
-        versionName = '1.1.3'
+        // version.properties supplies the packaged code for every variant.
+        versionName = '1.1.4'
     }
 
     flavorDimensions += "distribution"
     productFlavors {
         play {
             dimension = "distribution"
+            minSdk = 24
+            isDefault = false
         }
         github {
             dimension = "distribution"
+            isDefault = true
             applicationIdSuffix = ".github"
             versionNameSuffix = "-github"
         }
@@ -82,3 +85,5 @@ dependencies {
     implementation "com.google.android.gms:play-services-location:21.3.0"
     testImplementation "junit:junit:4.13.2"
 }
+
+apply from: rootProject.file('gradle/verify-distributions.gradle')
