@@ -29,6 +29,7 @@ Weather data is provided by [Open-Meteo](https://open-meteo.com/) under [CC BY 4
 ## Google Play
 Want to be added to the Google Play testing branch? 
 You can enroll here: https://play.google.com/apps/testing/com.BalancedLight.WindyWeather
+You'll need to give me your email first to do so, though, as Google requires 12 closed testers before being made public.
 
 ## Build
 
